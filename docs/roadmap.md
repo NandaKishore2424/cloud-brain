@@ -57,18 +57,32 @@ Phase 3 added **no migration**; the schema stays at version 2.
 
 Deferred: rich text, attachments, backlinks, note-to-todo linking.
 
-## Phase 4 — Sync
+## Phase 4 — Sync 🟡
 
-The hard one.
+The hard one. Built and verified; not yet exercised as a full round trip on
+hardware.
 
-- Supabase Auth (email OTP)
-- Postgres schema mirroring the local one, Row Level Security on every table
-- Outbox table: local writes enqueue a sync job
-- Pull/push on app foreground and on network return
-- Last-write-wins on `updated_at`, with the loser logged rather than discarded
+- Supabase Auth (email OTP), tokens in the Android Keystore via SecureStore
+- Postgres schema mirroring the local one; RLS enabled **and forced** on every
+  table, four policies each, `authenticated` only
+- **No outbox.** Every row carries `updated_at` and deletes are tombstones, so
+  the pending set is `updated_at > cursor`. Cursors live in the existing `meta`
+  table and are derived from observed data, never from the device clock
+- Push, then pull, on app foreground, on sign-in and on demand
+- Last-write-wins enforced **in SQL on both ends** —
+  `on conflict do update ... where excluded.updated_at > t.updated_at`.
+  PostgREST's own upsert overwrites unconditionally, which is last-*push*-wins
+  and loses data silently; the client needs the same clause or a pull
+  overwrites an unpushed local edit
+- An account claim in `meta` prevents syncing one device's database into a
+  second account — something RLS cannot prevent, because such rows arrive
+  correctly labelled
 
-Prerequisite already in place: UUIDv7 keys, `updated_at` on every row, soft
-deletes.
+Prerequisites already in place since Phase 0: UUIDv7 keys, `updated_at` on every
+row, soft deletes.
+
+See ADR 0012 (sync) and ADR 0013 (auth). Deferred deliberately: CRDTs, account
+deletion and export, encryption at rest — all listed as gates before release.
 
 ## Phase 5 — Job applications ✅
 
