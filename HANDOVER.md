@@ -4,8 +4,8 @@
 > Every session updates this before it ends.
 
 **Last updated:** 2026-09-20
-**Current phase:** Phase 7 — Home dashboard
-**Status:** ✅ Complete — `npm run verify` passes (typecheck + layering + 141 tests + schema)
+**Current phase:** Usability + architecture hardening (post Phase 7)
+**Status:** ✅ Complete — `npm run verify` passes (typecheck + layering + contrast + 148 tests + schema)
 
 ---
 
@@ -131,6 +131,40 @@ there.
 querying the schema directly, rather than importing from other features'
 `api/` folders — which `check:layering` would reject. Dev tools moved into
 `features/dashboard/components/DevTools.tsx`, still `__DEV__`-gated.
+
+---
+
+## Since Phase 7
+
+**Folder renamed** to `cloud-brain`. Git remote intact, no stale paths. The
+space-in-path debt is closed.
+
+**Colour system verified rather than chosen** (ADR 0011). A new
+`check:contrast` script composites every rendered foreground/background pair —
+including translucent chips — and checks it against its WCAG target. The
+hand-picked palette failed **11 of 38 pairs**; the rebuilt one passes all 38.
+It runs inside `npm run verify`, so a regression fails the build.
+
+**Usability**
+- `frequentAmounts` — a category's most-used amounts, surfaced as chips under
+  the keypad. Frequency then recency, over full history (a monthly rent figure
+  would fall out of a 30-day window).
+- `toAmountInput` — recalls stored paise into the keypad buffer. Whole rupees
+  drop the decimal, or the keypad silently ignores the next keypress. Tested as
+  a round-trip property against `parseAmount`.
+- `repeatTransaction` — copies a past transaction onto today. Long-press on a
+  ledger row now opens a Repeat/Delete menu, which also makes Money consistent
+  with Notes and Jobs.
+
+**Hardening**
+- `ErrorBoundary` at the root. The one class component in the codebase, with a
+  comment saying why. Recovery is honest because the app is local-first.
+- `docs/architecture.md` rewritten — it still described the Phase 0 skeleton.
+  Now covers layer rules and their enforcement, feature anatomy, the no-state-
+  library argument, correctness invariants, the four verification layers, the
+  measured performance posture, the Phase 4 sync design including where
+  last-write-wins is inadequate, and the known gaps.
+- `study/system-design-defence.md` — interview preparation for the architecture.
 
 ---
 
