@@ -27,6 +27,8 @@ on-device test stand between this and Done.
 `npm run verify` passes: typecheck · layering · contrast (38 pairs) ·
 **180 tests** · schema · RLS (30 checks).
 `npm run check:remote` passes: **16 checks against the live project**.
+`npm run verify:rls` now also asserts every sync function has a pinned
+`search_path`, so a later migration cannot silently drop it.
 
 ---
 
@@ -71,8 +73,27 @@ test attempts accordingly.
 | `supabase/migrations/0001_initial_schema.sql` | 7 tables + `user_id`; timestamps as `bigint`; **no FKs between synced tables** |
 | `supabase/migrations/0002_rls_policies.sql` | RLS enabled **and forced**, 4 policies each, `authenticated` only |
 | `supabase/migrations/0003_lww_upsert.sql` | `sync_upsert_<table>(rows jsonb)`, `security invoker`, conditional on `updated_at` |
+| `supabase/migrations/0004_function_search_path.sql` | pins `search_path = ''` on all seven functions |
 
-All three confirmed applied by `npm run check:remote` on 2026-09-20.
+All four confirmed applied on 2026-09-20 — by `npm run check:remote` over HTTPS,
+and independently through the Supabase MCP (every table: RLS enabled **and**
+forced, 4 policies).
+
+### Database linter — the one remaining warning is a false positive
+
+`public.rls_auto_enable()` is flagged as a `SECURITY DEFINER` function callable
+by `anon`. It is **not ours** — it is owned by `postgres` and wired to the
+`ensure_rls` event trigger, a safety net that auto-enables RLS on any new table
+in `public`.
+
+It was checked rather than assumed: calling it over PostgREST as `anon` returns
+`0A000 — cannot display a value of type event_trigger`. An event-trigger
+function has no callable signature, so the endpoint cannot invoke it. Leave it
+alone; it is defence in depth, and removing it would remove a protection.
+
+The performance linter reports all seven `*_sync_idx` indexes as unused. Also
+expected — no sync has run yet. **Recheck this after a month of real use**; if
+they are still unused then, that is a genuine finding.
 
 ### Client
 
@@ -114,23 +135,33 @@ Step 5 is the one that matters — it is the actual promise being made.
 
 ---
 
-## Next phase — the APK
+## Next step — the APK  (config done, needs an Expo account)
 
-The author wants a personal APK for roughly a month before any Play Store
-listing. That needs **EAS Build**, which is not set up yet.
+`eas.json` and the npm scripts are committed. What remains needs the author's
+own Expo login, so it could not be done from a session.
 
 ```bash
-npx eas-cli@latest build --platform android --profile preview
+npm install -g eas-cli     # or npx eas-cli@latest below
+eas login                  # free account
+eas init                   # writes extra.eas.projectId into app.json — commit it
+
+eas env:create --environment preview --type string \
+  --name EXPO_PUBLIC_SUPABASE_URL --value https://abxzvpdvsalweypvhgbg.supabase.co
+eas env:create --environment preview --type string \
+  --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <the publishable key from .env>
+
+npm run build:apk          # 10-20 min including queue
 ```
 
-Needs an Expo account (free), `eas.json` with a `preview` profile producing an
-APK rather than an AAB, and `.env` values supplied as EAS secrets — the free
-tier queues builds but does not charge for them.
+Profiles: `preview` → APK (sideload, the one to use daily) · `development` →
+APK with the dev client (unblocks Phase 6) · `production` → AAB (Play Store
+only; an AAB cannot be sideloaded).
 
-Note that an EAS build is a **dev/standalone build, not Expo Go**, which also
-unblocks Phase 6 (voice) and SQLCipher.
+Full explanation, including why `appVersionSource` is `remote` and why the env
+vars are not in `eas.json`, is in **`docs/building.md`**.
 
----
+**The APK starts with an empty database** — separate sandbox from Expo Go. That
+makes the first launch the real sync test: sign in, and the data should arrive.
 
 ## Hard gates before Play Store
 

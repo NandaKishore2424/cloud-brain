@@ -302,6 +302,35 @@ async function main() {
     );
   });
 
+  // --- Function hardening --------------------------------------------------
+  //
+  // 0004 pins `search_path` on every sync function. Asserted here so a later
+  // migration that recreates one cannot silently drop it again — which is
+  // exactly how it would be lost, since `create or replace function` discards
+  // settings that are not restated.
+  console.log('\nFunction search_path is pinned');
+
+  const settings = await db.query(
+    `select p.proname, p.proconfig
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname like 'sync\\_upsert\\_%'
+      order by p.proname`,
+  );
+
+  check(
+    settings.rows.length === SYNCED_TABLES.length,
+    `all ${SYNCED_TABLES.length} sync functions exist`,
+  );
+
+  for (const row of settings.rows) {
+    const config = row.proconfig ?? [];
+    check(
+      config.some((entry) => entry.startsWith('search_path=')),
+      `${row.proname}: search_path is not mutable`,
+    );
+  }
+
   console.log(
     failures === 0
       ? '\n  RLS verified: isolation holds on read, write, update and delete.\n'

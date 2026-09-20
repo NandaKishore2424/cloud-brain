@@ -49,7 +49,9 @@
     "bench:search": "node scripts/bench-search.js",
     "check:contrast": "node scripts/check-contrast.js",
     "verify:rls": "node scripts/verify-rls.js",
-    "check:remote": "node scripts/check-remote.js"
+    "check:remote": "node scripts/check-remote.js",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:dev": "eas build --platform android --profile development"
   },
   "private": true,
   "overrides": {
