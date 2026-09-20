@@ -34,20 +34,21 @@ on-device test stand between this and Done.
 
 ## ⚠️ Do these two things before testing sync on the phone
 
-**1. The email template must carry the code, not a link.**
+**1. Custom SMTP, then the email template.** See **`docs/email-setup.md`** for
+the full walkthrough.
 
-Supabase dashboard → **Authentication → Emails → Magic Link**. The default body
-uses `{{ .ConfirmationURL }}`, which is a link — useless here, because there is
-no deep link back into an Expo Go app. Add the token:
+Short version: the default template sends a *link*, which Expo Go cannot
+receive. Changing it to send `{{ .Token }}` requires custom SMTP — the dashboard
+disables the subject and body fields until one is configured (*"Set up custom
+SMTP to edit templates"*). Supabase's built-in mailer also only delivers to
+project team members' own addresses.
 
-```html
-<h2>Your Cloud Brain code</h2>
-<p style="font-size:28px;letter-spacing:6px"><strong>{{ .Token }}</strong></p>
-<p>It expires in an hour.</p>
-```
+So sign-in does not work at all until an SMTP sender is configured. This was
+originally filed as a pre-Play-Store gate; it is actually a prerequisite for the
+first sign-in.
 
-Without this, the mail arrives and the app asks for six digits that are not in
-it. Nothing in the code can detect or report this — hence this note.
+Without it, the mail arrives and the app asks for six digits that are not in it.
+Nothing in the code can detect or report this — hence this note.
 
 **2. Restart Metro after `.env` changed.**
 
@@ -171,7 +172,6 @@ makes the first launch the real sync test: sign in, and the data should arrive.
 | **Crash reporting** | `ErrorBoundary` logs to the dev console only; production failures are silent. |
 | **Account deletion + data export** | India's DPDP Act 2023 applies once you process other people's personal data. |
 | **A conflict strategy beyond last-write-wins** | It discards concurrent edits and trusts device clocks. Fine for one person. |
-| **Custom SMTP** | Supabase's built-in mailer is rate-limited to a handful an hour. |
 | **Free-tier capacity review** | 500MB Postgres is generous for one person, different across hundreds. |
 
 ---

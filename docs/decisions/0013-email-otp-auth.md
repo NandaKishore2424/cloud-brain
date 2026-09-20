@@ -42,15 +42,26 @@ public release, tracked in HANDOVER.md.)*
 
 ## Consequences
 
-- **The project needs one piece of dashboard configuration.** Supabase's default
-  Magic Link template sends `{{ .ConfirmationURL }}`, a link, which is useless
-  without a deep link back into the app. The template must include
-  `{{ .Token }}`. This is written down in HANDOVER.md because it is invisible in
-  the code and produces a confusing failure — the mail arrives, and the app asks
-  for six digits that are not in it.
-- **Supabase's built-in mailer is rate-limited** on the free tier (a couple of
-  messages an hour). Fine for one person; a custom SMTP sender is required
-  before other people use this.
+- **The project needs custom SMTP before it can be used at all.** This was
+  discovered late and is worth recording precisely, because the chain is not
+  obvious:
+
+  1. Supabase's default Magic Link template sends `{{ .ConfirmationURL }}` — a
+     link, useless without a deep link back into an Expo Go app.
+  2. Getting a code instead means editing the template to include
+     `{{ .Token }}`.
+  3. **Editing auth email templates requires custom SMTP.** The dashboard
+     disables the subject and body fields otherwise: *"Set up custom SMTP to
+     edit templates."*
+
+  So custom SMTP moved from a pre-launch gate to a prerequisite for the first
+  sign-in. The built-in mailer additionally only delivers to addresses belonging
+  to project team members, and is rate-limited to a handful of messages an hour;
+  custom SMTP raises that to 30/hour.
+
+  None of this is visible from the code, and the failure it produces is
+  confusing rather than loud — the mail arrives and the app asks for six digits
+  that are not in it. Hence `docs/email-setup.md`.
 - **Signing out leaves the local database completely untouched.** Sign-out ends
   replication, not access to your own data. The account claim in `meta` survives
   it on purpose (see ADR 0012, decision 5).
