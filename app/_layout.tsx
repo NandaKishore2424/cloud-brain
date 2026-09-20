@@ -20,6 +20,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useDatabaseBootstrap } from '@/db/bootstrap';
+import { ErrorBoundary } from '@/providers/ErrorBoundary';
 import { Button, Screen, Text, useTheme } from '@/design';
 import { spacing } from '@/design';
 
@@ -58,19 +59,24 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          {/* The note editor lives in the root stack rather than inside the
-              tabs, so it pushes over the tab bar and takes the full screen. */}
-          <Stack.Screen
-            name="note/[id]"
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="application/[id]"
-            options={{ animation: 'slide_from_right' }}
-          />
-        </Stack>
+        {/* Inside SafeAreaProvider so the fallback can use insets, and inside
+            GestureHandlerRootView so "try again" remounts the navigator rather
+            than the whole app. */}
+        <ErrorBoundary label="root">
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            {/* The note editor lives in the root stack rather than inside the
+                tabs, so it pushes over the tab bar and takes the full screen. */}
+            <Stack.Screen
+              name="note/[id]"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="application/[id]"
+              options={{ animation: 'slide_from_right' }}
+            />
+          </Stack>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -16,7 +16,9 @@ export {
 
 export {
   createTransaction,
+  frequentAmounts,
   getTransaction,
+  repeatTransaction,
   restoreTransaction,
   softDeleteTransaction,
   transactionsInRange,

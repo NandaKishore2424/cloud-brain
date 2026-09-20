@@ -143,6 +143,24 @@ export function formatAmountInput(input: string): string {
   return `${groupIndian(whole === '' ? '0' : whole)}.${fraction}`;
 }
 
+/**
+ * Render paise as a keypad input buffer.
+ *
+ * The inverse of `parseAmount`, used when a stored amount is recalled into the
+ * entry field — tapping a suggested amount has to leave the keypad in exactly
+ * the state it would be in had the user typed it.
+ *
+ * Whole rupees drop the decimal entirely: `4000` becomes `'40'`, not `'40.00'`.
+ * Leaving the `.00` on would mean the next keypress is silently ignored,
+ * because the buffer already holds two decimal places.
+ */
+export function toAmountInput(value: Paise): string {
+  const whole = Math.floor(Math.abs(value) / 100);
+  const fraction = Math.abs(value) % 100;
+  if (fraction === 0) return String(whole);
+  return `${whole}.${String(fraction).padStart(2, '0')}`;
+}
+
 export type FormatMoneyOptions = {
   /** Include the ₹ symbol. Default true. */
   symbol?: boolean;

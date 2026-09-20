@@ -48,7 +48,7 @@ export const TransactionRow = memo(function TransactionRow({
       delayLongPress={400}
       accessibilityRole="button"
       accessibilityLabel={`${item.categoryName ?? 'Uncategorised'}, ${formatMoney(asPaise(item.amount))}`}
-      accessibilityHint="Hold to delete"
+      accessibilityHint="Hold for repeat and delete"
       style={({ pressed }) => [
         styles.row,
         { backgroundColor: pressed ? theme.colors.surfaceAlt : 'transparent' },

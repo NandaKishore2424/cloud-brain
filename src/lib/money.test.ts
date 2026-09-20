@@ -10,6 +10,7 @@ import {
   parseAmount,
   scalePaise,
   subtractPaise,
+  toAmountInput,
   toRupees,
   type Paise,
 } from './money';
@@ -199,6 +200,54 @@ describe('parseAmount', () => {
     if (!result.ok) {
       expect(result.error.message).toBeTruthy();
       expect(result.error.message).not.toMatch(/SQL|undefined|null/i);
+    }
+  });
+});
+
+describe('toAmountInput', () => {
+  it('drops the decimal entirely for whole rupees', () => {
+    expect(toAmountInput(p(4000))).toBe('40');
+    expect(toAmountInput(p(100))).toBe('1');
+  });
+
+  /**
+   * The reason whole rupees must NOT render as '40.00': the keypad refuses a
+   * third decimal place, so a buffer already holding two would silently ignore
+   * the next keypress. Tapping a suggestion has to leave the field in the state
+   * it would be in had the user typed it.
+   */
+  it('leaves a whole-rupee buffer open to further typing', () => {
+    const buffer = toAmountInput(p(4000));
+    expect(buffer.includes('.')).toBe(false);
+  });
+
+  it('pads a single-digit paise value', () => {
+    expect(toAmountInput(p(4005))).toBe('40.05');
+  });
+
+  it('keeps both decimal places when present', () => {
+    expect(toAmountInput(p(4250))).toBe('42.50');
+  });
+
+  it('handles sub-rupee amounts', () => {
+    expect(toAmountInput(p(5))).toBe('0.05');
+    expect(toAmountInput(p(50))).toBe('0.50');
+  });
+
+  it('handles zero', () => {
+    expect(toAmountInput(p(0))).toBe('0');
+  });
+
+  /**
+   * The property that matters: anything stored can be recalled into the keypad
+   * and parsed back to exactly the same value. A suggestion that round-trips
+   * to a different amount would silently corrupt the ledger.
+   */
+  it('round-trips through parseAmount for every shape', () => {
+    for (const value of [1, 5, 50, 99, 100, 4000, 4005, 4250, 123456, 100000000]) {
+      const parsed = parseAmount(toAmountInput(p(value)));
+      expect(parsed.ok).toBe(true);
+      if (parsed.ok) expect(parsed.value).toBe(value);
     }
   });
 });

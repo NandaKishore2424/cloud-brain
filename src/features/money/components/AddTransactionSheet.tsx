@@ -5,11 +5,11 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { TransactionType } from '@/db/schema';
 import { Button, Icon, Sheet, Text, radii, spacing, useTheme } from '@/design';
 import { addDays, todayDate, formatDayHeading, type CalendarDate } from '@/lib/date';
-import { formatAmountInput, parseAmount } from '@/lib/money';
+import { asPaise, formatAmountInput, formatMoney, parseAmount, toAmountInput } from '@/lib/money';
 
 import { createTransaction, getDefaultAccountId } from '../api';
 import { applyAmountKey, isSaveableAmount, type AmountKey } from '../amountInput';
-import { useCategoriesByRecency } from '../hooks';
+import { useCategoriesByRecency, useFrequentAmounts } from '../hooks';
 import { AmountKeypad } from './AmountKeypad';
 import { CategoryPicker } from './CategoryPicker';
 import { TypeToggle } from './TypeToggle';
@@ -54,6 +54,7 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
   const [error, setError] = useState<string | null>(null);
 
   const categories = useCategoriesByRecency(type);
+  const suggestions = useFrequentAmounts(categoryId, type);
 
   // Reset on open rather than on close, so the exit animation plays against the
   // values the user just saw instead of a blank form snapping into place.
@@ -100,6 +101,14 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
   }, []);
 
   const handleClear = useCallback(() => setBuffer(''), []);
+
+  const handleSuggestion = useCallback((amount: number) => {
+    void Haptics.selectionAsync();
+    setError(null);
+    // Replaces rather than appends: the suggestion is the whole amount, and
+    // appending to a partially typed number would silently produce nonsense.
+    setBuffer(toAmountInput(asPaise(amount)));
+  }, []);
 
   const canGoForward = occurredOn < todayDate();
 
@@ -196,6 +205,35 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
           onSelect={setCategoryId}
         />
 
+        {/* Spending repeats: the same fare, the same lunch. Surfacing the
+            amounts this category is actually used with turns the common case
+            from four keypresses into one tap. Hidden while the note field has
+            focus, along with the keypad. */}
+        {suggestions.length > 0 && !noteFocused ? (
+          <View style={[styles.padded, styles.suggestions]}>
+            {suggestions.map((suggestion) => (
+              <Pressable
+                key={suggestion.amount}
+                onPress={() => handleSuggestion(suggestion.amount)}
+                accessibilityRole="button"
+                accessibilityLabel={`Use ${formatMoney(asPaise(suggestion.amount))}`}
+                style={({ pressed }) => [
+                  styles.suggestionChip,
+                  {
+                    backgroundColor: pressed
+                      ? theme.colors.accentSoft
+                      : theme.colors.surfaceAlt,
+                  },
+                ]}
+              >
+                <Text variant="label" color="textMuted" numeric>
+                  {formatMoney(asPaise(suggestion.amount), { decimals: false })}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
         <View style={[styles.padded, styles.metaRow]}>
           <View
             style={[
@@ -280,6 +318,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   metaRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  suggestions: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  suggestionChip: {
+    paddingHorizontal: spacing.md,
+    height: 32,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   noteField: {
     flex: 1,
     flexDirection: 'row',

@@ -5,9 +5,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Divider,
   EmptyState,
   Icon,
   Screen,
+  Sheet,
   Text,
   UndoBar,
   radii,
@@ -17,7 +19,12 @@ import {
 } from '@/design';
 import { asPaise, formatMoney } from '@/lib/money';
 
-import { restoreTransaction, softDeleteTransaction, type TransactionListItem } from '../api';
+import {
+  repeatTransaction,
+  restoreTransaction,
+  softDeleteTransaction,
+  type TransactionListItem,
+} from '../api';
 import {
   useCategoryBreakdown,
   useMonthNavigation,
@@ -52,6 +59,7 @@ export function MoneyScreen() {
   const breakdown = useCategoryBreakdown(navigation.range);
 
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [actionsFor, setActionsFor] = useState<TransactionListItem | null>(null);
   const undo = useUndoTarget();
 
   /**
@@ -68,12 +76,30 @@ export function MoneyScreen() {
   const handleDelete = useCallback(
     async (item: TransactionListItem) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setActionsFor(null);
 
       const result = await softDeleteTransaction(item.id);
       if (result.ok) undo.set(item.id);
     },
     [undo],
   );
+
+  /**
+   * Copy a past transaction onto today.
+   *
+   * The fastest possible path for a recurring expense: the fare you paid
+   * yesterday, the same subscription, the same lunch. Faster even than the
+   * entry sheet, because nothing has to be chosen at all.
+   */
+  const handleRepeat = useCallback(async (item: TransactionListItem) => {
+    setActionsFor(null);
+    const result = await repeatTransaction(item.id);
+    void Haptics.notificationAsync(
+      result.ok
+        ? Haptics.NotificationFeedbackType.Success
+        : Haptics.NotificationFeedbackType.Error,
+    );
+  }, []);
 
   const handleUndo = useCallback(
     async (id: string) => {
@@ -96,9 +122,9 @@ export function MoneyScreen() {
       item.kind === 'header' ? (
         <DayHeader label={item.label} dayNet={item.dayNet} />
       ) : (
-        <TransactionRow item={item.item} onLongPress={handleDelete} />
+        <TransactionRow item={item.item} onLongPress={setActionsFor} />
       ),
-    [handleDelete],
+    [],
   );
 
   return (
@@ -169,6 +195,44 @@ export function MoneyScreen() {
       </Pressable>
 
       <AddTransactionSheet visible={sheetVisible} onClose={closeSheet} />
+
+      {/* Long-press opens a menu rather than deleting outright, which also
+          makes this consistent with Notes and Jobs. Delete still costs one
+          extra tap than before, and Undo remains the safety net. */}
+      <Sheet visible={actionsFor !== null} onClose={() => setActionsFor(null)}>
+        <View style={styles.actions}>
+          <Text variant="heading" numberOfLines={1}>
+            {actionsFor?.categoryName ?? 'Uncategorised'}
+          </Text>
+          <Text variant="body" color="textMuted" numeric>
+            {actionsFor === null ? '' : formatMoney(asPaise(actionsFor.amount))}
+          </Text>
+
+          <Divider spacingY="sm" />
+
+          <Pressable
+            onPress={() => actionsFor && handleRepeat(actionsFor)}
+            accessibilityRole="button"
+            style={[styles.action, { backgroundColor: theme.colors.accentSoft }]}
+          >
+            <Icon name="repeat" size={17} color="accent" />
+            <Text variant="body" style={{ color: theme.colors.accent }}>
+              Repeat today
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => actionsFor && handleDelete(actionsFor)}
+            accessibilityRole="button"
+            style={[styles.action, { backgroundColor: theme.colors.negativeSoft }]}
+          >
+            <Icon name="trash-outline" size={17} color="negative" />
+            <Text variant="body" style={{ color: theme.colors.negative }}>
+              Delete
+            </Text>
+          </Pressable>
+        </View>
+      </Sheet>
     </Screen>
   );
 }
@@ -207,6 +271,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   empty: { paddingTop: spacing.giant, minHeight: 240 },
+  actions: { paddingHorizontal: spacing.xl, gap: spacing.sm, paddingBottom: spacing.sm },
+  action: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    height: 48,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
+  },
   fab: {
     position: 'absolute',
     right: spacing.lg,

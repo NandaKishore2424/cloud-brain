@@ -1,8 +1,8 @@
-import { and, desc, eq, gte, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import { categories, transactions, type TransactionType } from '@/db/schema';
-import { nowTimestamp, type CalendarDate, type DateRange } from '@/lib/date';
+import { nowTimestamp, todayDate, type CalendarDate, type DateRange } from '@/lib/date';
 import { newId } from '@/lib/id';
 import { attempt, err, ok, type Result } from '@/lib/result';
 import type { Paise } from '@/lib/money';
@@ -215,6 +215,94 @@ export async function restoreTransaction(id: string): Promise<Result<void>> {
   );
 
   return result.ok ? ok(undefined) : result;
+}
+
+/* ------------------------------------------------------------------ */
+/* Recall                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The amounts most often entered against a category.
+ *
+ * Spending is repetitive in a way that is easy to exploit: the same metro fare,
+ * the same lunch, the same monthly rent. Surfacing the three or four amounts a
+ * category is actually used with turns the common case from "type four digits"
+ * into one tap.
+ *
+ * Ordered by frequency first, then recency — a fare paid forty times should
+ * outrank a one-off paid yesterday. `GROUP BY amount` is what makes this a
+ * frequency table rather than a list of recent rows.
+ *
+ * Reads the whole history rather than a date window on purpose: a rent figure
+ * entered monthly is exactly the kind of amount worth recalling, and it would
+ * fall out of a 30-day window most of the time.
+ */
+export function frequentAmounts(
+  categoryId: string,
+  type: TransactionType,
+  limit = 4,
+) {
+  return db
+    .select({
+      amount: transactions.amount,
+      uses: sql<number>`count(*)`.as('uses'),
+      lastUsedAt: sql<number>`max(${transactions.createdAt})`.as('last_used_at'),
+    })
+    .from(transactions)
+    .where(
+      and(
+        isNull(transactions.deletedAt),
+        eq(transactions.categoryId, categoryId),
+        eq(transactions.type, type),
+      ),
+    )
+    .groupBy(transactions.amount)
+    .orderBy(desc(sql`uses`), desc(sql`last_used_at`))
+    .limit(limit);
+}
+
+/**
+ * Copy an existing transaction onto today.
+ *
+ * The other half of the repetition shortcut: rather than re-entering a recurring
+ * expense field by field, repeat the one already recorded. Amount, type,
+ * category, account and note carry over; the date does not, because the whole
+ * point is that this is a new occurrence.
+ *
+ * Reads the source inside the same transaction as the insert so a concurrent
+ * delete cannot produce a copy of a row that no longer exists.
+ */
+export async function repeatTransaction(id: string): Promise<Result<string>> {
+  const newTransactionId = newId();
+  const now = nowTimestamp();
+
+  const result = await attempt('DB_WRITE', 'Could not repeat that transaction', () =>
+    db.transaction(async (tx) => {
+      const [source] = await tx
+        .select()
+        .from(transactions)
+        .where(and(eq(transactions.id, id), isNull(transactions.deletedAt)))
+        .limit(1);
+
+      if (!source) throw new Error('source transaction is gone');
+
+      await tx.insert(transactions).values({
+        id: newTransactionId,
+        accountId: source.accountId,
+        categoryId: source.categoryId,
+        amount: source.amount,
+        type: source.type,
+        note: source.note,
+        occurredOn: todayDate(),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return newTransactionId;
+    }),
+  );
+
+  return result.ok ? ok(result.value) : result;
 }
 
 /** Empty and whitespace-only notes are stored as NULL, never as ''. */
