@@ -5,11 +5,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { sqlite } from '@/db/client';
 import { db } from '@/db/client';
-import { accounts, categories, todos, transactions } from '@/db/schema';
+import { accounts, categories, notes, todos, transactions } from '@/db/schema';
 import {
+  clearNotes,
   clearTodos,
   clearTransactions,
   seedDemoData,
+  seedDemoNotes,
   seedDemoTodos,
 } from '@/db/seed';
 import { Button, Card, Divider, Icon, Screen, Text, spacing, useTheme } from '@/design';
@@ -124,22 +126,27 @@ function DevTools() {
     db.select({ id: transactions.id }).from(transactions),
   );
   const todoRows = useLiveQuery(db.select({ id: todos.id }).from(todos));
+  const noteRows = useLiveQuery(db.select({ id: notes.id }).from(notes));
 
   const transactionCount = transactionRows.data?.length ?? 0;
   const todoCount = todoRows.data?.length ?? 0;
-  const count = transactionCount + todoCount;
+  const noteCount = noteRows.data?.length ?? 0;
+  const count = transactionCount + todoCount + noteCount;
 
   const handleSeed = async () => {
     setBusy(true);
     const money = await seedDemoData({ months: 3 });
     const tasks = await seedDemoTodos();
+    const written = await seedDemoNotes();
     setBusy(false);
 
     if (!money.ok) return setStatus(money.error.message);
     if (!tasks.ok) return setStatus(tasks.error.message);
+    if (!written.ok) return setStatus(written.error.message);
 
     setStatus(
-      `Inserted ${money.value.inserted} transactions and ${tasks.value.inserted} tasks`,
+      `Inserted ${money.value.inserted} transactions, ${tasks.value.inserted} tasks ` +
+        `and ${written.value.inserted} notes`,
     );
   };
 
@@ -147,12 +154,16 @@ function DevTools() {
     setBusy(true);
     const money = await clearTransactions();
     const tasks = await clearTodos();
+    const written = await clearNotes();
     setBusy(false);
 
     if (!money.ok) return setStatus(money.error.message);
     if (!tasks.ok) return setStatus(tasks.error.message);
+    if (!written.ok) return setStatus(written.error.message);
 
-    setStatus(`Removed ${money.value} transactions and ${tasks.value} tasks`);
+    setStatus(
+      `Removed ${money.value} transactions, ${tasks.value} tasks and ${written.value} notes`,
+    );
   };
 
   return (
@@ -163,8 +174,9 @@ function DevTools() {
       </View>
       <Text variant="body" color="textMuted" style={styles.cardIntro}>
         Stripped from release builds. {transactionCount} transaction
-        {transactionCount === 1 ? '' : 's'} and {todoCount} task
-        {todoCount === 1 ? '' : 's'} stored.
+        {transactionCount === 1 ? '' : 's'}, {todoCount} task
+        {todoCount === 1 ? '' : 's'} and {noteCount} note
+        {noteCount === 1 ? '' : 's'} stored.
       </Text>
 
       <Divider spacingY="lg" />

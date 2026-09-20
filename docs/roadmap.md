@@ -42,10 +42,20 @@ implementation would need is built and tested.
 
 Deferred: subtasks, recurring todos, reminders, notifications.
 
-## Phase 3 — Notes
+## Phase 3 — Notes ✅
 
-Create/edit/delete, tags, pin, FTS5 full-text search. Deferred: rich text,
-attachments, backlinks.
+Delivered. List with pinned section, full-screen editor with autosave, inline
+tag entry, pin, delete with undo, and debounced search.
+
+**Changed from plan:** FTS5 was replaced with `LIKE` search — see ADR 0010.
+Measured worst case is under 3ms at 2,000 notes against a 16.7ms frame budget,
+and `sql.js` (the schema verification engine) has no FTS5, so the migration
+could not have been covered by the verification layer. The ADR records a
+concrete trigger for revisiting and `npm run bench:search` re-measures it.
+
+Phase 3 added **no migration**; the schema stays at version 2.
+
+Deferred: rich text, attachments, backlinks, note-to-todo linking.
 
 ## Phase 4 — Sync
 

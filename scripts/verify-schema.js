@@ -145,6 +145,9 @@ async function main() {
     'no temp B-tree sort (index supplies the order)',
   );
 
+  console.log('\nForward migration');
+  await verifyForwardMigrations(SQL, migrations, TARGET_SCHEMA_VERSION);
+
   console.log('\nIdempotency');
   const current = one('PRAGMA user_version;');
   check(
@@ -158,6 +161,79 @@ async function main() {
       : `\n${failures} check(s) failed.\n`,
   );
   process.exit(failures === 0 ? 0 : 1);
+}
+
+/**
+ * Prove that a device upgrading from an older version lands on exactly the same
+ * schema as a fresh install.
+ *
+ * Applying every migration to an empty database — which the checks above do —
+ * only proves the chain is valid for a NEW install. It says nothing about a
+ * phone sitting on version 2 when version 3 ships, which is the case that
+ * actually breaks: the migration that works on an empty table and fails on one
+ * with rows in it, or the `ALTER TABLE` that assumes a column an older device
+ * does not have.
+ *
+ * Method: for every stopping point V, build a database by applying migrations
+ * 1..V, then apply the remainder, and compare the resulting schema against a
+ * database built in one pass. `sqlite_master` holds the canonical DDL for every
+ * table, index and trigger, so comparing it catches any divergence.
+ */
+async function verifyForwardMigrations(SQL, migrations, targetVersion) {
+  const fingerprint = (db) => {
+    const result = db.exec(
+      `SELECT type, name, sql FROM sqlite_master
+       WHERE name NOT LIKE 'sqlite_%'
+       ORDER BY type, name;`,
+    );
+    return (result[0]?.values ?? []).map((row) => row.join(' | ')).join('\n');
+  };
+
+  const applyFrom = (db, fromVersion) => {
+    for (const migration of migrations) {
+      if (migration.version <= fromVersion) continue;
+      db.run('BEGIN;');
+      for (const statement of migration.statements) db.run(statement);
+      db.run(`PRAGMA user_version = ${migration.version};`);
+      db.run('COMMIT;');
+    }
+  };
+
+  const fresh = new SQL.Database();
+  fresh.run('PRAGMA foreign_keys = ON;');
+  applyFrom(fresh, 0);
+  const expected = fingerprint(fresh);
+  fresh.close();
+
+  for (let stop = 1; stop < targetVersion; stop += 1) {
+    const staged = new SQL.Database();
+    staged.run('PRAGMA foreign_keys = ON;');
+
+    // Stop partway, as a shipped device would be.
+    for (const migration of migrations) {
+      if (migration.version > stop) break;
+      staged.run('BEGIN;');
+      for (const statement of migration.statements) staged.run(statement);
+      staged.run(`PRAGMA user_version = ${migration.version};`);
+      staged.run('COMMIT;');
+    }
+
+    // Now upgrade it the rest of the way, as the app would on next launch.
+    applyFrom(staged, stop);
+
+    const actual = fingerprint(staged);
+    const version = staged.exec('PRAGMA user_version;')[0].values[0][0];
+    staged.close();
+
+    check(
+      actual === expected && version === targetVersion,
+      `upgrading from v${stop} matches a fresh install`,
+    );
+  }
+
+  if (targetVersion < 2) {
+    console.log('    (only one migration exists; nothing to upgrade from yet)');
+  }
 }
 
 main().catch((error) => {

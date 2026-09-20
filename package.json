@@ -43,7 +43,8 @@
     "verify": "npm run typecheck && npm run check:layering && npm run test && npm run verify:schema",
     "test": "TZ=Asia/Kolkata vitest run",
     "test:watch": "TZ=Asia/Kolkata vitest",
-    "check:layering": "node scripts/check-layering.js"
+    "check:layering": "node scripts/check-layering.js",
+    "bench:search": "node scripts/bench-search.js"
   },
   "private": true,
   "overrides": {

@@ -2,12 +2,19 @@ import { isNull } from 'drizzle-orm';
 
 import { addDays, nowTimestamp, todayDate, type CalendarDate } from '@/lib/date';
 import { newId } from '@/lib/id';
-import { ORDER_GAP } from '@/lib/ordering';
 import { fromRupees } from '@/lib/money';
+import { ORDER_GAP } from '@/lib/ordering';
 import { attempt, type Result } from '@/lib/result';
 
 import { db } from './client';
-import { accounts, categories, todos, transactions, type TodoPriority } from './schema';
+import {
+  accounts,
+  categories,
+  notes,
+  todos,
+  transactions,
+  type TodoPriority,
+} from './schema';
 
 /**
  * Development seed data.
@@ -215,6 +222,98 @@ export async function clearTodos(): Promise<Result<number>> {
   return attempt('DB_WRITE', 'Could not clear tasks', async () => {
     const existing = await db.select({ id: todos.id }).from(todos);
     await db.delete(todos);
+    return existing.length;
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Notes                                                               */
+/* ------------------------------------------------------------------ */
+
+type SeedNote = {
+  title: string;
+  body: string;
+  tags: string[];
+  /** Days ago this was last edited. Drives list ordering. */
+  editedDaysAgo: number;
+  pinned?: boolean;
+};
+
+/**
+ * Deliberately varied in shape, not just in content: one pinned, one untitled,
+ * one with no body, one long enough to truncate in the preview, one with many
+ * tags. Seed data that is uniformly "normal" makes a list look correct while
+ * hiding every layout case that actually breaks.
+ */
+const SEED_NOTES: readonly SeedNote[] = [
+  {
+    title: 'Payment webhook retry \u2014 root cause',
+    body: 'Duplicate charges traced to a race in the idempotency check. Two workers read the key before either wrote it, so both proceeded. Fix: SETNX in Redis with the request id, TTL 24h, and fall through to the existing row on collision. Worth writing up properly for the sprint review \u2014 it is the kind of thing that reads well in an appraisal because the impact is concrete: prevented duplicate charges on retry.',
+    tags: ['payments', 'incident', 'redis'],
+    editedDaysAgo: 0,
+    pinned: true,
+  },
+  {
+    title: 'Interview prep \u2014 talking points',
+    body: 'Local-first architecture: SQLite is the source of truth, server is a sync target. Lead with the latency argument, then volunteer the cost (two replicas that both accept writes = distributed systems problem).',
+    tags: ['job-hunt', 'interview'],
+    editedDaysAgo: 1,
+  },
+  {
+    title: '',
+    body: 'Random thought: the brag document idea only works if capture is frictionless. If it takes more than a minute at the end of the day it will not happen.',
+    tags: [],
+    editedDaysAgo: 2,
+  },
+  {
+    title: 'Books to read',
+    body: 'Designing Data-Intensive Applications \u2014 chapter 5 on replication.\nSQLite internals docs.\nThe Rust book, eventually.',
+    tags: ['reading'],
+    editedDaysAgo: 4,
+  },
+  {
+    title: 'Standup \u2014 nothing to add today',
+    body: '',
+    tags: ['payments'],
+    editedDaysAgo: 6,
+  },
+  {
+    title: 'Flat renewal checklist',
+    body: 'Agreement expires end of quarter. Need: police verification, two months deposit adjustment, confirm maintenance is still included.',
+    tags: ['personal', 'admin', 'rent', 'urgent'],
+    editedDaysAgo: 11,
+  },
+];
+
+export type NoteSeedReport = { inserted: number };
+
+export async function seedDemoNotes(): Promise<Result<NoteSeedReport>> {
+  return attempt('DB_WRITE', 'Could not seed demo notes', async () => {
+    const now = nowTimestamp();
+    const DAY_MS = 86_400_000;
+
+    const rows = SEED_NOTES.map((spec) => {
+      const editedAt = now - spec.editedDaysAgo * DAY_MS;
+      return {
+        id: newId(),
+        title: spec.title,
+        body: spec.body,
+        tags: spec.tags,
+        pinnedAt: spec.pinned === true ? now : null,
+        createdAt: editedAt,
+        updatedAt: editedAt,
+      };
+    });
+
+    await db.insert(notes).values(rows);
+    return { inserted: rows.length };
+  });
+}
+
+export async function clearNotes(): Promise<Result<number>> {
+  return attempt('DB_WRITE', 'Could not clear notes', async () => {
+    const existing = await db.select({ id: notes.id }).from(notes);
+    await db.delete(notes);
     return existing.length;
   });
 }

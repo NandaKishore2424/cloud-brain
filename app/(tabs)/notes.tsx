@@ -1,13 +1,6 @@
-import { EmptyState, Screen } from '@/design';
+import { NotesScreen } from '@/features/notes/components/NotesScreen';
 
-export default function NotesScreen() {
-  return (
-    <Screen>
-      <EmptyState
-        icon="document-text-outline"
-        title="Notes"
-        hint="Phase 3 builds this: tagged notes with full-text search."
-      />
-    </Screen>
-  );
+/** Route file. Thin by convention — see CLAUDE.md §3. */
+export default function NotesRoute() {
+  return <NotesScreen />;
 }

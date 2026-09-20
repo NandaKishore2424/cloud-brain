@@ -60,6 +60,12 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
+          {/* The note editor lives in the root stack rather than inside the
+              tabs, so it pushes over the tab bar and takes the full screen. */}
+          <Stack.Screen
+            name="note/[id]"
+            options={{ animation: 'slide_from_right' }}
+          />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

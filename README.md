@@ -15,7 +15,7 @@ the UI never waits on a network call.
 | 0 | Foundation — design system, local database, navigation | ✅ |
 | 1 | Money — income & expense ledger | ✅ |
 | 2 | Todos | ✅ |
-| 3 | Notes | ⬜ |
+| 3 | Notes | ✅ |
 | 4 | Cloud sync & auth (Supabase) | ⬜ |
 | 5 | Job application tracker | ⬜ |
 | 6 | Voice work log + AI weekly summaries | ⬜ |

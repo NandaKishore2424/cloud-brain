@@ -1,0 +1,15 @@
+export {
+  allNotesForTagIndex,
+  createNote,
+  discardIfEmpty,
+  getNote,
+  noteById,
+  notesList,
+  restoreNote,
+  setNotePinned,
+  softDeleteNote,
+  updateNote,
+  type CreateNoteInput,
+  type NoteListItem,
+  type UpdateNotePatch,
+} from './notes';
