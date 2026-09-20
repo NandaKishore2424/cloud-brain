@@ -1,0 +1,48 @@
+{
+  "name": "cloud-brain",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo/vector-icons": "^15.0.2",
+    "@shopify/flash-list": "2.0.2",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "^0.45.2",
+    "expo": "~57.0.24",
+    "expo-constants": "~57.0.19",
+    "expo-crypto": "~57.0.3",
+    "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-linking": "~57.0.10",
+    "expo-router": "~57.0.22",
+    "expo-splash-screen": "~57.0.9",
+    "expo-sqlite": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "sql.js": "^1.14.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "db:reset": "echo \"Uninstall the app from the device to reset the local DB\"",
+    "verify:schema": "node scripts/verify-schema.js",
+    "verify": "npm run typecheck && npm run verify:schema"
+  },
+  "private": true,
+  "overrides": {
+    "react-dom": "19.2.3"
+  }
+}
