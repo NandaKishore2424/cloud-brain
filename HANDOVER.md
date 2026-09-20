@@ -4,8 +4,8 @@
 > Every session updates this before it ends.
 
 **Last updated:** 2026-09-20
-**Current phase:** Phase 0 — Foundation
-**Status:** ✅ Complete — typecheck passes, Android bundle verified
+**Current phase:** Phase 1 — Money
+**Status:** ✅ Complete — `npm run verify` passes (typecheck + 68 tests + schema)
 
 ---
 
@@ -14,8 +14,8 @@
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Foundation: repo, docs, design system, DB layer, navigation shell | ✅ Done |
-| 1 | Money — accounts, transactions, categories, monthly view | ⬜ **Next** |
-| 2 | Todos | ⬜ |
+| 1 | Money — ledger, entry flow, month summary, category breakdown | ✅ Done |
+| 2 | Todos | ⬜ **Next** |
 | 3 | Notes | ⬜ |
 | 4 | Supabase auth + sync | ⬜ |
 | 5 | Job application tracker | ⬜ |
@@ -23,90 +23,91 @@
 
 ---
 
-## What Phase 0 delivered
+## What Phase 1 delivered
 
-**App**
-- Expo SDK 57 / RN 0.86 / React 19, TypeScript `strict` + `noUncheckedIndexedAccess`
-- expo-router file-based navigation, 4-tab shell (Home, Money, Todos, Notes)
-- Root layout gates render on font loading **and** database migration, holding
-  the native splash so there is no unstyled first frame
+**Data access** (`src/features/money/api/`) — the only place money SQL is written
+- `transactions.ts` — `transactionsInRange` (query builder for `useLiveQuery`),
+  `createTransaction`, `updateTransaction`, `softDeleteTransaction`,
+  `restoreTransaction`. Mutations return `Result<T>` and never throw.
+- `summary.ts` — `monthTotals` and `categoryTotals` as SQL `SUM`/`GROUP BY`,
+  not JS reductions. Sums stay in integer paise.
+- `categories.ts` — `categoriesByRecency` (ordered by `MAX(created_at)`),
+  `getDefaultAccountId`.
 
-**Design system** (`src/design/`)
-- Two-layer tokens: raw palette → semantic colour scheme, light + dark
-- Primitives: `Text`, `Button`, `Card`, `Screen`, `Icon`, `Divider`, `EmptyState`
-- `useThemedStyles` — per-theme stylesheet cache in a `WeakMap`
-- Reanimated press feedback on the UI thread, haptics on press-in
+**Hooks** (`src/features/money/hooks/`)
+- `useTransactions` — reactive ledger, flattened into header/item rows in one
+  O(n) pass, with sticky header indices for FlashList
+- `useMonthSummary`, `useCategoryBreakdown`, `useCategoriesByRecency`
+- `useMonthNavigation` — stores a single anchor date, derives the range
 
-**Data layer** (`src/db/`)
-- `expo-sqlite` with `enableChangeListener: true` (required for `useLiveQuery`)
-- WAL, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000`
-- Drizzle schema for **money, todos, notes only** — later phases add their own
-  tables via new migrations
-- Hand-written migration runner on `PRAGMA user_version`; DDL and version bump
-  share one transaction
-- Migration 1: core tables + indexes. Migration 2: 1 starter account,
-  12 expense + 6 income categories, all with fixed UUIDs
+**UI** (`src/features/money/components/`)
+- `MoneyScreen` — composition root; FlashList with the summary and breakdown as
+  `ListHeaderComponent` (never a ScrollView wrapping a virtualised list)
+- `AddTransactionSheet` — the five-second entry flow
+- `AmountKeypad` — custom 12-key pad, memoised keys, haptics on press-in,
+  long-press backspace clears
+- `CategoryPicker`, `TypeToggle`, `TransactionRow`, `MonthSummaryCard`,
+  `CategoryBreakdownCard`
+- `Sheet` added to the design system — hand-built Modal + Reanimated + pan
+  dismiss, ~120 lines, reusable for Phases 2 and 3
 
-**Domain library** (`src/lib/`) — pure, no React, no SQLite
-- `money.ts` — branded `Paise`, Indian digit grouping, `parseAmount`
-- `date.ts` — `CalendarDate` (TEXT) vs `Timestamp` (epoch ms)
-- `id.ts` — UUIDv7
-- `result.ts` — `Result<T>`, `attempt`, `attemptSync`
-
-**Docs**
-- `docs/` — architecture, data model, roadmap, 6 ADRs (committed)
-- `study/phase-0/` — 6 teaching notes + 27-question interview bank (gitignored)
-
-**Verification** (`scripts/verify-schema.js`, run via `npm run verify`)
-- Executes the migrations against a real SQLite engine (sql.js/WASM) on the dev
-  machine — no device needed
-- Asserts: migrations apply, seed counts, every CHECK and FOREIGN KEY constraint
-  actually rejects bad rows, the ledger query uses `transactions_ledger_idx`
-  with no temp B-tree sort, and re-running the migrator is a no-op
-- All 16 checks pass
-
-**Bug this caught** — worth remembering, because both `tsc` and `expo export`
-missed it: `buildCategorySeed()` is called while the `migrations` array literal
-is evaluated, but `SEED_CATEGORIES` was declared *below* it. `const` is hoisted
-into a temporal dead zone, so importing the module threw *"Cannot access
-SEED_CATEGORIES before initialization"* — the app would have crashed on first
-launch. The seed block now sits above `migrations`, with a comment saying why.
-
-**Also verified**
-- `npx expo export --platform android` — bundles successfully
-- Bundle size fix: per-weight Inter imports took the export from **12MB → 7.1MB**
-  (the package root re-exports all 18 weights, ~340KB each)
+**Also**
+- `src/db/seed.ts` — deterministic dev seeder (seeded PRNG, realistic Indian
+  salaried-month shape). Never runs automatically; exposed via a `__DEV__`-gated
+  card on the Home tab.
+- 68 unit tests (Vitest) over `money.ts`, `date.ts`, `amountInput.ts`
+- ADR 0007 (entry flow) and ADR 0008 (verification strategy)
+- `study/phase-1/` — 3 notes including a 20-question interview bank
 
 ---
 
-## Next session: Phase 1 — Money
+## Bugs and gaps the tests caught
 
-**Entry point:** read `docs/roadmap.md` § Phase 1, then `src/db/schema.ts`
-(`accounts`, `categories`, `transactions` are already defined — do not redesign).
+Worth reading before Phase 2 — these are the failure modes this project actually
+produces.
+
+1. **`fromRupees(1.005)` returned 100, not 101.** `1.005 * 100` is
+   `100.49999999999999`. Fixed by rounding through a fixed-decimal string. The
+   doc comment was also **overclaiming** and was rewritten: by the time the
+   function is called the literal is already the nearest double, so this
+   recovers intent, not information. `parseAmount` (string → integer) is the
+   only path user input takes and never touches a float.
+
+2. **`asCalendarDate` validated shape but not existence.** `'2026-02-29'`
+   matched the regex, and `new Date(2026, 1, 29)` silently rolls over to 1
+   March. Now validated by round-trip: parse, format back, compare.
+
+3. **Two test expectations were wrong, not the code** — `2026-02-29` (not a leap
+   year) and `formatMoneyCompact(450)` (₹4.50 rounds to ₹5 by design). Both
+   corrected with a comment explaining the intent.
+
+---
+
+## Next session: Phase 2 — Todos
+
+**Entry point:** read `docs/roadmap.md` § Phase 2, then `src/db/schema.ts`
+(`todos` table already defined — do not redesign). Mirror the money feature's
+structure exactly; it is the reference implementation now.
 
 **Build, in this order:**
+1. `src/features/todos/api/` — query builder for the list, plus
+   `createTodo`, `toggleTodo`, `updateTodo`, `softDeleteTodo`, `reorderTodo`.
+   Same two-shape split as money: unexecuted queries for reads, `Result<T>` for
+   writes.
+2. `src/features/todos/hooks/useTodos.ts` — reactive, grouped into
+   Overdue / Today / Upcoming / No date / Done.
+3. Quick-add: a single text field pinned above the keyboard. Title is the only
+   required field, same defaults-first principle as the money sheet.
+4. List with swipe-to-complete, and the same delete-plus-undo pattern as the
+   ledger (`MoneyScreen` has the reference implementation).
+5. Drag to reorder — `sortOrder` is already sparse in the schema so a reorder
+   writes one row rather than renumbering the list.
 
-1. `src/features/money/api/` — `listTransactions`, `createTransaction`,
-   `updateTransaction`, `softDeleteTransaction`, `getMonthSummary`.
-   Return `Result<T>`. Only place money SQL is written.
-2. `src/features/money/hooks/useTransactions.ts` — reactive read via
-   `useLiveQuery` so the list updates with no manual refetch.
-3. **Add-transaction sheet.** Amount keypad → type toggle → category → note.
-   **Target: under 5 seconds from tab tap to saved.** This is the core product
-   bet; optimise this screen hardest. Amount first — it is the only required
-   field. Everything else gets a sensible default.
-4. Transaction list — `FlashList`, grouped by day, sticky date headers.
-5. Month summary header: income / expense / net, then category breakdown.
+**Reuse, do not rebuild:** `Sheet`, `Button`, `Card`, `EmptyState`, the undo bar
+pattern, and `useMonthNavigation`'s derive-don't-store approach.
 
-**Do not build** charts, budgets, recurring transactions, CSV export or
-multi-account transfers. They are listed as deferred in `docs/roadmap.md`.
-
-**Note:** `src/db/seed.ts` does not exist yet. If dev data is wanted, add it in
-Phase 1 and call it from a dev-only control, never automatically.
-
-**Replace** `app/(tabs)/index.tsx` — it is currently a Phase 0 foundation-check
-screen (reads schema version and seed counts live from SQLite). It served its
-purpose; the real dashboard replaces it.
+**Deferred** (stay out of scope): subtasks, recurring todos, reminders,
+notifications.
 
 ---
 
@@ -114,24 +115,30 @@ purpose; the real dashboard replaces it.
 
 | Item | Severity | Note |
 |------|----------|------|
-| No tests | **medium** | `src/lib/money.ts` and `date.ts` are pure functions and the highest-value test surface in the project. Add Vitest in Phase 1. |
-| Local DB not encrypted | **medium** | Holds salary and spending data. SQLCipher needs a custom dev build (blocked by ADR 0002 until Phase 6). Tracked, not fixed. |
-| Project path contains a space (`Desktop/Cloud Brain`) | low | Harmless for Expo Go and EAS Build. **Will break local Gradle builds.** Rename the folder to `cloud-brain` before attempting one. |
-| No schema drift check | low | `schema.ts` and `migrations.ts` are kept in agreement by hand. A dev-only check comparing `PRAGMA table_info` against the Drizzle schema would catch divergence. |
-| Icons are Expo defaults | low | Cosmetic. Replace before any public release. |
-| `deletedAt` rows never purged | low | Needs a compaction job in Phase 4, once sync can confirm a tombstone reached all replicas. |
-| `react-dom` pinned via `overrides` | low | npm hoists 19.3.x which demands react ^19.3, conflicting with Expo's react 19.2.3. Android-only app, so react-dom is never rendered. Revisit if web is ever targeted. |
+| Local DB not encrypted | **medium** | Holds salary and spending data. SQLCipher needs a custom dev build (blocked by ADR 0002 until Phase 6). |
+| No forward-migration test | medium | `verify:schema` proves the chain applies to an *empty* database, not that a device on v1 upgrades cleanly to v2. Add a per-version upgrade test before any migration 3. |
+| No edit flow for transactions | low | `updateTransaction` exists and is tested by typecheck only — nothing calls it yet. Delete-and-re-add with undo is the current path. |
+| No account picker | low | One account. Phase 4 will force this. |
+| No full date picker | low | Stepper covers today through a few days back. Back-filling a month of receipts is unsupported. |
+| Project path contains a space | low | Fine for Expo Go and EAS. **Breaks local Gradle builds** — rename to `cloud-brain` first. |
+| `deletedAt` rows never purged | low | Needs compaction in Phase 4, once sync can confirm a tombstone reached all replicas. |
+| Icons are Expo defaults | low | Cosmetic. |
 
 ---
 
 ## Decisions a future session must not silently reverse
 
-These were argued through. Reversing one means writing a new ADR that supersedes it.
+Reversing one means writing a new ADR that supersedes it.
 
 - **No styling library** — tokens + `StyleSheet` only (ADR 0003)
-- **Drizzle for queries, hand-written migrations**, no drizzle-kit bundling (ADR 0005)
+- **Drizzle for queries, hand-written migrations** (ADR 0005)
 - **Local-first**; SQLite is the read path, Supabase is a sync target (ADR 0004)
 - **Expo Go compatibility** is a hard constraint until Phase 6 (ADR 0002)
 - **Money is integer paise**, amounts always positive, direction in `type` (ADR 0006)
+- **Defaults-first entry**: one required field, everything else defaulted (ADR 0007)
+- **No component tests**; three-layer verification instead (ADR 0008)
 - **A shipped migration is frozen.** Append a new one; never edit an old one.
 - **No feature imports from another feature.**
+- **All SQL lives in a feature's `api/`.** Components never import `db`.
+- **No state management library.** SQLite is the store; `useLiveQuery` is the
+  subscription.

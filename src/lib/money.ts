@@ -49,10 +49,26 @@ export function fromRupees(rupees: number): Paise {
   if (!Number.isFinite(rupees)) {
     throw new Error(`Cannot convert non-finite value ${rupees} to paise`);
   }
-  // Multiplying then rounding is safe here: the product is within 2^53 for any
-  // realistic amount, and rounding collapses the float error before it is stored.
   const scaled = rupees * 100;
-  const rounded = scaled < 0 ? -Math.round(-scaled) : Math.round(scaled);
+
+  // Absorb float representation error before rounding.
+  //
+  // `1.005 * 100` is 100.49999999999999, and `Math.round` of that is 100 — the
+  // caller plainly meant 101. Passing through a fixed-decimal string rounds on
+  // the decimal representation instead of the binary one, recovering the
+  // intent. `2.675 * 100` (267.49999999999994) behaves the same way.
+  //
+  // Six places is far beyond any currency precision, so this only ever corrects
+  // representation noise, never a genuine fraction of a paise.
+  //
+  // Worth being precise about the limit: this recovers intent, it does not
+  // recover information. By the time this function is called, the literal
+  // `1.005` has already become the nearest double (1.00499999999999989) and the
+  // original decimal is gone. That is the argument for the whole design —
+  // `parseAmount` goes string to integer and never touches a float, and it is
+  // the only path user input takes.
+  const corrected = Number(scaled.toFixed(6));
+  const rounded = corrected < 0 ? -Math.round(-corrected) : Math.round(corrected);
   return asPaise(rounded);
 }
 
@@ -106,6 +122,25 @@ function groupIndian(digits: string): string {
   const lastThree = digits.slice(-3);
   const rest = digits.slice(0, -3);
   return `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${lastThree}`;
+}
+
+/**
+ * Format a partially-typed amount string for live display on the keypad.
+ *
+ * Distinct from `formatMoney` because the input is mid-edit and must be shown
+ * exactly as typed: `'42.'` keeps its trailing dot (the user is about to type
+ * paise) and `'42.5'` shows one decimal rather than being padded to `'42.50'`.
+ * Padding as they type would make the caret appear to jump.
+ */
+export function formatAmountInput(input: string): string {
+  if (input === '') return '0';
+
+  const dotIndex = input.indexOf('.');
+  if (dotIndex === -1) return groupIndian(input);
+
+  const whole = input.slice(0, dotIndex);
+  const fraction = input.slice(dotIndex + 1);
+  return `${groupIndian(whole === '' ? '0' : whole)}.${fraction}`;
 }
 
 export type FormatMoneyOptions = {

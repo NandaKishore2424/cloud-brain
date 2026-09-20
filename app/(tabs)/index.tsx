@@ -5,8 +5,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { sqlite } from '@/db/client';
 import { db } from '@/db/client';
-import { accounts, categories } from '@/db/schema';
-import { Card, Divider, Icon, Screen, Text, spacing, useTheme } from '@/design';
+import { accounts, categories, transactions } from '@/db/schema';
+import { clearTransactions, seedDemoData } from '@/db/seed';
+import { Button, Card, Divider, Icon, Screen, Text, spacing, useTheme } from '@/design';
 import { formatDayHeading, todayDate } from '@/lib/date';
 import { asPaise, formatMoney, formatMoneyCompact } from '@/lib/money';
 
@@ -94,7 +95,78 @@ export default function HomeScreen() {
         <SampleRow paise={1_23_45_678} />
         <SampleRow paise={-89900} />
       </Card>
+
+      {__DEV__ ? <DevTools /> : null}
     </Screen>
+  );
+}
+
+/**
+ * Dev-only data controls.
+ *
+ * Gated on `__DEV__`, which Metro replaces with a literal `false` in a
+ * production build — so the whole block, and the import of the seeding module
+ * it pulls in, is removed by dead-code elimination rather than merely hidden.
+ *
+ * Seeding is never automatic. An app that invents financial records on launch
+ * is worse than an empty one, because you cannot tell your data from its data.
+ */
+function DevTools() {
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const transactionRows = useLiveQuery(
+    db.select({ id: transactions.id }).from(transactions),
+  );
+  const count = transactionRows.data?.length ?? 0;
+
+  const handleSeed = async () => {
+    setBusy(true);
+    const result = await seedDemoData({ months: 3 });
+    setBusy(false);
+    setStatus(
+      result.ok
+        ? `Inserted ${result.value.inserted} transactions across ${result.value.months} months`
+        : result.error.message,
+    );
+  };
+
+  const handleClear = async () => {
+    setBusy(true);
+    const result = await clearTransactions();
+    setBusy(false);
+    setStatus(result.ok ? `Removed ${result.value} transactions` : result.error.message);
+  };
+
+  return (
+    <Card style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Icon name="flask-outline" size={18} color="warning" />
+        <Text variant="heading">Dev tools</Text>
+      </View>
+      <Text variant="body" color="textMuted" style={styles.cardIntro}>
+        Stripped from release builds. {count} transaction{count === 1 ? '' : 's'} stored.
+      </Text>
+
+      <Divider spacingY="lg" />
+
+      <View style={styles.devActions}>
+        <Button label="Seed demo data" onPress={handleSeed} disabled={busy} size="sm" />
+        <Button
+          label="Clear all"
+          onPress={handleClear}
+          disabled={busy || count === 0}
+          variant="danger"
+          size="sm"
+        />
+      </View>
+
+      {status !== null ? (
+        <Text variant="label" color="textMuted" style={styles.devStatus}>
+          {status}
+        </Text>
+      ) : null}
+    </Card>
   );
 }
 
@@ -175,4 +247,6 @@ const styles = StyleSheet.create({
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sampleRight: { alignItems: 'flex-end' },
+  devActions: { flexDirection: 'row', gap: spacing.sm },
+  devStatus: { marginTop: spacing.md },
 });

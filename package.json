@@ -30,7 +30,8 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "sql.js": "^1.14.2",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11"
   },
   "scripts": {
     "start": "expo start",
@@ -39,7 +40,9 @@
     "typecheck": "tsc --noEmit",
     "db:reset": "echo \"Uninstall the app from the device to reset the local DB\"",
     "verify:schema": "node scripts/verify-schema.js",
-    "verify": "npm run typecheck && npm run verify:schema"
+    "verify": "npm run typecheck && npm run test && npm run verify:schema",
+    "test": "TZ=Asia/Kolkata vitest run",
+    "test:watch": "TZ=Asia/Kolkata vitest"
   },
   "private": true,
   "overrides": {

@@ -13,6 +13,7 @@ export { Divider, type DividerProps } from './components/Divider';
 export { EmptyState, type EmptyStateProps } from './components/EmptyState';
 export { Icon, type IconName, type IconProps } from './components/Icon';
 export { Screen, type ScreenProps } from './components/Screen';
+export { Sheet, type SheetProps } from './components/Sheet';
 export { Text, type TextColor, type TextProps } from './components/Text';
 
 export { getTheme, useTheme, useThemedStyles, type Theme, type ThemeName } from './theme';

@@ -43,12 +43,28 @@ export function todayDate(): CalendarDate {
   return toCalendarDate(new Date());
 }
 
-/** Validate and brand a string read from the database or user input. */
+/**
+ * Validate and brand a string read from the database or from user input.
+ *
+ * Checks the shape *and* that the day actually exists. `'2026-02-29'` matches
+ * the pattern perfectly but 2026 is not a leap year, and `new Date(2026, 1, 29)`
+ * silently rolls over to 1 March rather than failing — so a shape-only check
+ * would admit a date that quietly becomes a different one.
+ *
+ * The existence check is the round-trip itself: parse it, format it back, and
+ * see whether it survived unchanged. Any rollover shows up as a mismatch.
+ */
 export function asCalendarDate(value: string): CalendarDate {
   if (!CALENDAR_DATE_RE.test(value)) {
     throw new Error(`Invalid CalendarDate: ${value}`);
   }
-  return value as CalendarDate;
+
+  const branded = value as CalendarDate;
+  if (toCalendarDate(parseCalendarDate(branded)) !== value) {
+    throw new Error(`Invalid CalendarDate (no such day): ${value}`);
+  }
+
+  return branded;
 }
 
 /**

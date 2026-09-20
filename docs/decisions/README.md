@@ -14,3 +14,5 @@ supersedes it and say so in both.
 | [0004](0004-local-first-sqlite.md) | Local-first; SQLite is the read path | Accepted |
 | [0005](0005-drizzle-with-hand-written-migrations.md) | Drizzle for queries, hand-written migrations | Accepted |
 | [0006](0006-money-as-integer-paise.md) | Money as integer paise | Accepted |
+| [0007](0007-custom-keypad-entry-flow.md) | Custom keypad, defaults-first entry flow | Accepted |
+| [0008](0008-verification-strategy.md) | Three-layer verification, no device required | Accepted |

@@ -10,7 +10,10 @@ One phase per working session. Each ends with a passing typecheck, an updated
 Design system, local database with migrations, navigation shell, shared domain
 library. No user-facing features.
 
-## Phase 1 — Money
+## Phase 1 — Money ✅
+
+Delivered. Entry flow, reactive ledger, month aggregates, category
+breakdown, delete with undo, dev seeder, 68 unit tests. See ADR 0007 and 0008.
 
 Scope:
 - `src/features/money/api/` — list, create, update, soft-delete, month summary

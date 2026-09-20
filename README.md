@@ -13,7 +13,7 @@ the UI never waits on a network call.
 | Phase | Scope | State |
 |-------|-------|-------|
 | 0 | Foundation — design system, local database, navigation | ✅ |
-| 1 | Money — income & expense ledger | ⬜ |
+| 1 | Money — income & expense ledger | ✅ |
 | 2 | Todos | ⬜ |
 | 3 | Notes | ⬜ |
 | 4 | Cloud sync & auth (Supabase) | ⬜ |
@@ -45,7 +45,9 @@ npm start
 Scan the QR code with **Expo Go** on an Android device.
 
 ```bash
-npm run verify      # typecheck + run migrations against a real SQLite engine
+npm run verify      # typecheck + unit tests + schema execution
+npm run test        # Vitest over pure domain logic
+npm run verify:schema  # runs migrations against a real SQLite engine
 ```
 
 The schema check executes the migrations against sql.js (WASM SQLite) and

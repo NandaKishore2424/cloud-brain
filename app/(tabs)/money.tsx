@@ -1,13 +1,9 @@
-import { EmptyState, Screen } from '@/design';
+import { MoneyScreen } from '@/features/money/components/MoneyScreen';
 
-export default function MoneyScreen() {
-  return (
-    <Screen>
-      <EmptyState
-        icon="wallet-outline"
-        title="Money"
-        hint="Phase 1 builds this: accounts, categories and a sub-five-second expense entry flow."
-      />
-    </Screen>
-  );
+/**
+ * Route file. Thin by convention — see CLAUDE.md §3: routes wire params and
+ * render one feature component, nothing else.
+ */
+export default function MoneyRoute() {
+  return <MoneyScreen />;
 }
