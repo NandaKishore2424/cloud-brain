@@ -223,6 +223,85 @@ async function main() {
   }
   await db.exec('reset role;');
 
+  // --- Last-write-wins upsert ---------------------------------------------
+  //
+  // The conditional upsert in 0003 is what makes "last write wins" true rather
+  // than "last push wins". These assert the behaviour directly: a stale push
+  // must be a no-op, a newer push must win, and neither may cross a user
+  // boundary.
+  console.log('\nLast-write-wins upsert');
+
+  const noteOf = async (id) =>
+    (await db.query('select title, updated_at from public.notes where id = $1', [id]))
+      .rows[0];
+
+  const NOTE_ID = 'aaaaaaaa-0000-4000-8000-00000000000a';
+
+  await db.exec(`
+    insert into public.notes (id, user_id, title, body, created_at, updated_at)
+    values ('${NOTE_ID}', '${ALICE}', 'original', '', 1, 100);
+  `);
+
+  await asUser(db, ALICE, async () => {
+    // Stale: updated_at 50 < the stored 100.
+    await db.query('select public.sync_upsert_notes($1::jsonb)', [
+      JSON.stringify([
+        { id: NOTE_ID, user_id: ALICE, title: 'stale', body: '',
+          tags: [], created_at: 1, updated_at: 50 },
+      ]),
+    ]);
+    check((await noteOf(NOTE_ID)).title === 'original', 'a stale push is a no-op');
+
+    // Newer: updated_at 200 > 100.
+    await db.query('select public.sync_upsert_notes($1::jsonb)', [
+      JSON.stringify([
+        { id: NOTE_ID, user_id: ALICE, title: 'newer', body: '',
+          tags: [], created_at: 1, updated_at: 200 },
+      ]),
+    ]);
+    check((await noteOf(NOTE_ID)).title === 'newer', 'a newer push wins');
+
+    // Equal timestamps must not flip the row — otherwise re-pushing an
+    // unchanged row would churn it on every sync.
+    await db.query('select public.sync_upsert_notes($1::jsonb)', [
+      JSON.stringify([
+        { id: NOTE_ID, user_id: ALICE, title: 'equal', body: '',
+          tags: [], created_at: 1, updated_at: 200 },
+      ]),
+    ]);
+    check((await noteOf(NOTE_ID)).title === 'newer', 'an equal-timestamp push is a no-op');
+
+    // A brand new row still inserts.
+    await db.query('select public.sync_upsert_notes($1::jsonb)', [
+      JSON.stringify([
+        { id: 'aaaaaaaa-0000-4000-8000-00000000000b', user_id: ALICE,
+          title: 'fresh', body: '', tags: [], created_at: 1, updated_at: 10 },
+      ]),
+    ]);
+    check(
+      (await noteOf('aaaaaaaa-0000-4000-8000-00000000000b'))?.title === 'fresh',
+      'a new row inserts through the same path',
+    );
+  });
+
+  // The function is security invoker, so RLS still applies inside it. If this
+  // ever fails, the function has been made security definer and every policy
+  // in 0002 is bypassed.
+  await asUser(db, BOB, async () => {
+    await expectRejected(
+      db,
+      'the upsert function cannot write across users (still security invoker)',
+      `select public.sync_upsert_notes('${JSON.stringify([
+        { id: 'cccccccc-0000-4000-8000-00000000000c', user_id: ALICE,
+          title: 'stolen', body: '', tags: [], created_at: 1, updated_at: 999 },
+      ])}'::jsonb)`,
+    );
+    check(
+      (await db.query('select id from public.notes')).rows.length === 0,
+      'Bob still sees none of the notes',
+    );
+  });
+
   console.log(
     failures === 0
       ? '\n  RLS verified: isolation holds on read, write, update and delete.\n'

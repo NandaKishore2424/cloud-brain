@@ -8,7 +8,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.cloudbrain.app",
       "adaptiveIcon": {
@@ -28,11 +30,14 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "dark": { "backgroundColor": "#0B0D11" },
+          "dark": {
+            "backgroundColor": "#0B0D11"
+          },
           "image": "./assets/splash-icon.png",
           "imageWidth": 180
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
