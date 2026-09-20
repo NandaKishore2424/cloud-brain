@@ -32,38 +32,29 @@ on-device test stand between this and Done.
 
 ---
 
-## ⚠️ Do these two things before testing sync on the phone
+## ⚠️ Sync is deliberately switched off
 
-**1. Custom SMTP, then the email template.** See **`docs/email-setup.md`** for
-the full walkthrough.
+**Decision by the author, 2026-09-20: do not turn sync on, and do not prompt to.**
 
-Short version: the default template sends a *link*, which Expo Go cannot
-receive. Changing it to send `{{ .Token }}` requires custom SMTP — the dashboard
-disables the subject and body fields until one is configured (*"Set up custom
-SMTP to edit templates"*). Supabase's built-in mailer also only delivers to
-project team members' own addresses.
+It is built, tested and committed. It is simply not enabled, because enabling it
+requires a custom SMTP sender before the first sign-in can happen at all (see
+`docs/email-setup.md`), and that is setup effort this project does not currently
+want. The app is fully usable signed out — that was the design rule from the
+start (ADR 0004), and this is that rule being cashed in.
 
-So sign-in does not work at all until an SMTP sender is configured. This was
-originally filed as a pre-Play-Store gate; it is actually a prerequisite for the
-first sign-in.
+**What this means in practice:**
 
-Without it, the mail arrives and the app asks for six digits that are not in it.
-Nothing in the code can detect or report this — hence this note.
+- Do not register the `EXPO_PUBLIC_SUPABASE_*` variables with EAS. Without
+  them the built app reports "Not configured in this build" on the sync screen
+  and behaves normally everywhere else.
+- **There is no backup.** Losing the phone, reinstalling, or clearing app data
+  loses everything. This is understood and accepted.
+- Nothing needs rebuilding to change this later: configure SMTP, add the two
+  EAS variables, rebuild. No server work remains — all four migrations are
+  applied and verified.
 
-**2. Restart Metro after `.env` changed.**
-
-`EXPO_PUBLIC_*` values are inlined into the bundle at build time, not read at
-runtime. A running dev server holds the old (absent) values, so sync will report
-"not configured" until Metro is restarted:
-
-```bash
-npx expo start -c
-```
-
-**Free-tier mail is rate-limited** to a couple of messages an hour. Budget the
-test attempts accordingly.
-
----
+A future session must not treat this as an unfinished task to helpfully
+complete.
 
 ## Phase 4 — what exists
 
