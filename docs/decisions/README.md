@@ -18,3 +18,4 @@ supersedes it and say so in both.
 | [0008](0008-verification-strategy.md) | Three-layer verification, no device required | Accepted |
 | [0009](0009-sparse-ordering-no-drag.md) | Sparse ordering; discrete moves instead of drag | Accepted |
 | [0010](0010-search-without-fts.md) | LIKE search now; FTS5 when the data justifies it | Accepted |
+| [0011](0011-colour-system.md) | Colour system verified against WCAG in CI | Accepted |
