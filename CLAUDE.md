@@ -92,6 +92,10 @@ npm run typecheck      # tsc --noEmit
 npm run check:layering # enforces the dependency-direction rules in §2
 npm run test           # Vitest over pure modules (TZ-pinned)
 npm run verify:schema  # runs migrations against a real SQLite engine (sql.js)
+npm run verify:rls     # runs the Postgres migrations against PGlite and attacks them
+
+npm run check:remote   # asserts the LIVE Supabase project matches the migrations
+                       # (needs network + a filled-in .env; not part of verify)
 ```
 
 `npm run verify:schema` matters more than it looks. `tsc` proves the migration

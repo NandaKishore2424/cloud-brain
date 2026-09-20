@@ -19,3 +19,5 @@ supersedes it and say so in both.
 | [0009](0009-sparse-ordering-no-drag.md) | Sparse ordering; discrete moves instead of drag | Accepted |
 | [0010](0010-search-without-fts.md) | LIKE search now; FTS5 when the data justifies it | Accepted |
 | [0011](0011-colour-system.md) | Colour system verified against WCAG in CI | Accepted |
+| [0012](0012-cursor-sync-no-outbox.md) | Cursor-based sync; last-write-wins in SQL on both ends | Accepted |
+| [0013](0013-email-otp-auth.md) | Email one-time code for authentication | Accepted |

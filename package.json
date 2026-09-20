@@ -30,6 +30,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@types/react": "~19.2.2",
+    "@types/sql.js": "^1.4.11",
     "sql.js": "^1.14.2",
     "typescript": "~6.0.3",
     "vitest": "^4.1.11"
@@ -47,7 +48,8 @@
     "check:layering": "node scripts/check-layering.js",
     "bench:search": "node scripts/bench-search.js",
     "check:contrast": "node scripts/check-contrast.js",
-    "verify:rls": "node scripts/verify-rls.js"
+    "verify:rls": "node scripts/verify-rls.js",
+    "check:remote": "node scripts/check-remote.js"
   },
   "private": true,
   "overrides": {

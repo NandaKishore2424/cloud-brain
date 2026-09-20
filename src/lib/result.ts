@@ -17,6 +17,13 @@ export type ErrorCode =
   | 'DB_MIGRATION'
   | 'NOT_FOUND'
   | 'VALIDATION'
+  // Phase 4. Kept distinct from one another because the UI reacts to each
+  // differently: NETWORK is worth retrying silently, AUTH needs the user to
+  // sign in again, and SYNC means the request reached the server and the
+  // server refused it — which is a bug to surface, not a blip to hide.
+  | 'NETWORK'
+  | 'AUTH'
+  | 'SYNC'
   | 'UNKNOWN';
 
 export type AppError = {

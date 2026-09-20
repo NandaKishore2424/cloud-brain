@@ -75,6 +75,10 @@ export default function RootLayout() {
               name="application/[id]"
               options={{ animation: 'slide_from_right' }}
             />
+            {/* Sync is a destination reached from Home, deliberately not a tab
+                and never shown on launch — the app must be fully usable
+                signed out (ADR 0004). */}
+            <Stack.Screen name="sync" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </ErrorBoundary>
       </SafeAreaProvider>

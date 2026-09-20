@@ -30,10 +30,24 @@ export function DashboardScreen() {
   return (
     <Screen scroll>
       <View style={styles.header}>
-        <Text variant="caption" color="textMuted">
-          {formatShortDate(todayDate()).toUpperCase()}
-        </Text>
-        <Text variant="title">{greeting}</Text>
+        <View style={styles.headerText}>
+          <Text variant="caption" color="textMuted">
+            {formatShortDate(todayDate()).toUpperCase()}
+          </Text>
+          <Text variant="title">{greeting}</Text>
+        </View>
+
+        {/* Navigation, not an import: `features/dashboard` may not depend on
+            `features/sync` (CLAUDE.md §2), and the route is the seam. */}
+        <Pressable
+          onPress={() => router.push('/sync')}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Backup and sync"
+          style={styles.headerAction}
+        >
+          <Icon name="cloud-outline" size={21} color="textMuted" />
+        </Pressable>
       </View>
 
       {/* Capture without a tab switch.
@@ -338,7 +352,14 @@ function MoneyStat({
 }
 
 const styles = StyleSheet.create({
-  header: { paddingTop: spacing.lg, paddingBottom: spacing.xl, gap: spacing.xxs },
+  header: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  headerText: { flex: 1, gap: spacing.xxs },
+  headerAction: { paddingBottom: spacing.xxs },
   emptyWrap: { paddingVertical: spacing.giant },
   capture: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   captureButton: {
