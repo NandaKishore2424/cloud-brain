@@ -4,7 +4,7 @@
 > Every session updates this before it ends.
 
 **Last updated:** 2026-09-20
-**Current phase:** Phase 5 — Job applications
+**Current phase:** Phase 7 — Home dashboard
 **Status:** ✅ Complete — `npm run verify` passes (typecheck + layering + 141 tests + schema)
 
 ---
@@ -20,6 +20,7 @@
 | 4 | Supabase auth + sync | ⛔ **Blocked — needs a Supabase project** |
 | 5 | Job application tracker | ✅ Done |
 | 6 | Voice work-log + AI summaries | ⛔ Blocked — needs a dev build + AI key |
+| 7 | Home dashboard | ✅ Done |
 
 **Every phase that can be built without external credentials is done.**
 Phases 4 and 6 are blocked on things only the author can provide — see below.
@@ -115,13 +116,23 @@ There is no unblocked phase left. The options are:
 
 1. **Unblock Phase 4** by creating a Supabase project (see below), then build sync.
 2. **Unblock Phase 6** by setting up a dev build (see below).
-3. **Phase 7 — a real Home dashboard.** The Home tab is still the Phase 0
-   foundation-check screen. With four features live there is now something worth
-   surfacing: the month's net, today's tasks, overdue follow-ups, recent notes.
-   This needs no external services and would make the app feel finished.
-4. **Use it for a fortnight and fix what annoys you.** Genuinely the highest
+3. **Use it for a fortnight and fix what annoys you.** Genuinely the highest
    value option — every deferred item so far is a guess about what you will not
-   miss.
+   miss, and a fortnight of real use will tell you which guesses were wrong.
+
+## What Phase 7 delivered
+
+Replaced the Phase 0 foundation-check Home screen with a real dashboard:
+overdue tasks and due follow-ups first, then today's tasks, the month's net,
+job-hunt state and recent notes. Cards link into their tabs; nothing is editable
+there.
+
+`features/dashboard/` has its own `api/` with seven small indexed read models
+querying the schema directly, rather than importing from other features'
+`api/` folders — which `check:layering` would reject. Dev tools moved into
+`features/dashboard/components/DevTools.tsx`, still `__DEV__`-gated.
+
+---
 
 ## Blocked phases — what they need from the author
 
@@ -167,7 +178,6 @@ it needs the same dev build.
 | No account picker / full date picker | low | Both forced by Phase 4. |
 | `deletedAt` rows never purged | low | Needs compaction in Phase 4. |
 | No project rename (todos) | low | `project` is free text. |
-| Home tab is still the Phase 0 check screen | **medium** | Now the most obvious gap. A real dashboard is the natural Phase 7. |
 | Five tabs, and Phase 6 wants a sixth | medium | Android tolerates five; six is too many. Voice log should be a Home action or replace the Home tab, not a sixth tab. |
 | Icons are Expo defaults | low | Cosmetic. |
 

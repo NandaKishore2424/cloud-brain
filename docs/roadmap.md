@@ -93,3 +93,22 @@ The reason the project is called Cloud Brain.
 - Quarterly rollup → achievements in STAR form for appraisals and CV bullets
 
 The API key lives in the Edge Function, never in the app bundle.
+
+---
+
+## Phase 7 — Home dashboard ✅
+
+Delivered. Replaces the Phase 0 foundation-check screen with a real hub:
+overdue tasks and due follow-ups first, then today's tasks, the month's net,
+the job-hunt state and recent notes. Every card links into its tab; nothing is
+editable there.
+
+**Ordered by urgency, not by feature.** A dashboard organised by feature is a
+menu; organised by urgency it answers "what should I be doing".
+
+The dashboard is its own feature with its own read models in
+`features/dashboard/api/`, querying the schema directly rather than importing
+from `features/money/api` and friends — `npm run check:layering` enforces that.
+The small duplication in query shape is deliberate: these are different read
+models that happen to touch the same tables, and coupling them would mean a
+dashboard tweak could break the ledger.

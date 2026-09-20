@@ -19,6 +19,7 @@ the UI never waits on a network call.
 | 4 | Cloud sync & auth (Supabase) | ⛔ needs credentials |
 | 5 | Job application tracker | ✅ |
 | 6 | Voice work log + AI weekly summaries | ⛔ needs a dev build |
+| 7 | Home dashboard | ✅ |
 
 ## Stack
 
