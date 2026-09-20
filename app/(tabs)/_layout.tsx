@@ -29,6 +29,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // The Todos tab pins a text composer to the bottom of the screen.
+        // Without this the tab bar sits between it and the keyboard.
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.textSubtle,
         tabBarStyle: {

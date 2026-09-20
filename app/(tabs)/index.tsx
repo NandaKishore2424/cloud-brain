@@ -5,8 +5,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { sqlite } from '@/db/client';
 import { db } from '@/db/client';
-import { accounts, categories, transactions } from '@/db/schema';
-import { clearTransactions, seedDemoData } from '@/db/seed';
+import { accounts, categories, todos, transactions } from '@/db/schema';
+import {
+  clearTodos,
+  clearTransactions,
+  seedDemoData,
+  seedDemoTodos,
+} from '@/db/seed';
 import { Button, Card, Divider, Icon, Screen, Text, spacing, useTheme } from '@/design';
 import { formatDayHeading, todayDate } from '@/lib/date';
 import { asPaise, formatMoney, formatMoneyCompact } from '@/lib/money';
@@ -118,24 +123,36 @@ function DevTools() {
   const transactionRows = useLiveQuery(
     db.select({ id: transactions.id }).from(transactions),
   );
-  const count = transactionRows.data?.length ?? 0;
+  const todoRows = useLiveQuery(db.select({ id: todos.id }).from(todos));
+
+  const transactionCount = transactionRows.data?.length ?? 0;
+  const todoCount = todoRows.data?.length ?? 0;
+  const count = transactionCount + todoCount;
 
   const handleSeed = async () => {
     setBusy(true);
-    const result = await seedDemoData({ months: 3 });
+    const money = await seedDemoData({ months: 3 });
+    const tasks = await seedDemoTodos();
     setBusy(false);
+
+    if (!money.ok) return setStatus(money.error.message);
+    if (!tasks.ok) return setStatus(tasks.error.message);
+
     setStatus(
-      result.ok
-        ? `Inserted ${result.value.inserted} transactions across ${result.value.months} months`
-        : result.error.message,
+      `Inserted ${money.value.inserted} transactions and ${tasks.value.inserted} tasks`,
     );
   };
 
   const handleClear = async () => {
     setBusy(true);
-    const result = await clearTransactions();
+    const money = await clearTransactions();
+    const tasks = await clearTodos();
     setBusy(false);
-    setStatus(result.ok ? `Removed ${result.value} transactions` : result.error.message);
+
+    if (!money.ok) return setStatus(money.error.message);
+    if (!tasks.ok) return setStatus(tasks.error.message);
+
+    setStatus(`Removed ${money.value} transactions and ${tasks.value} tasks`);
   };
 
   return (
@@ -145,7 +162,9 @@ function DevTools() {
         <Text variant="heading">Dev tools</Text>
       </View>
       <Text variant="body" color="textMuted" style={styles.cardIntro}>
-        Stripped from release builds. {count} transaction{count === 1 ? '' : 's'} stored.
+        Stripped from release builds. {transactionCount} transaction
+        {transactionCount === 1 ? '' : 's'} and {todoCount} task
+        {todoCount === 1 ? '' : 's'} stored.
       </Text>
 
       <Divider spacingY="lg" />

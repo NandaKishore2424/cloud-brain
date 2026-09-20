@@ -1,11 +1,20 @@
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EmptyState, Icon, Screen, Text, radii, spacing, useTheme } from '@/design';
+import {
+  EmptyState,
+  Icon,
+  Screen,
+  Text,
+  UndoBar,
+  radii,
+  spacing,
+  useTheme,
+  useUndoTarget,
+} from '@/design';
 import { asPaise, formatMoney } from '@/lib/money';
 
 import { restoreTransaction, softDeleteTransaction, type TransactionListItem } from '../api';
@@ -20,9 +29,6 @@ import { AddTransactionSheet } from './AddTransactionSheet';
 import { CategoryBreakdownCard } from './CategoryBreakdownCard';
 import { MonthSummaryCard } from './MonthSummaryCard';
 import { TransactionRow } from './TransactionRow';
-
-/** How long the undo affordance stays on screen after a delete. */
-const UNDO_WINDOW_MS = 6000;
 
 /**
  * The Money tab.
@@ -46,17 +52,7 @@ export function MoneyScreen() {
   const breakdown = useCategoryBreakdown(navigation.range);
 
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [undoId, setUndoId] = useState<string | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearUndoTimer = useCallback(() => {
-    if (undoTimer.current !== null) {
-      clearTimeout(undoTimer.current);
-      undoTimer.current = null;
-    }
-  }, []);
-
-  useEffect(() => clearUndoTimer, [clearUndoTimer]);
+  const undo = useUndoTarget();
 
   /**
    * Delete immediately, then offer undo.
@@ -74,23 +70,19 @@ export function MoneyScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
       const result = await softDeleteTransaction(item.id);
-      if (!result.ok) return;
-
-      clearUndoTimer();
-      setUndoId(item.id);
-      undoTimer.current = setTimeout(() => setUndoId(null), UNDO_WINDOW_MS);
+      if (result.ok) undo.set(item.id);
     },
-    [clearUndoTimer],
+    [undo],
   );
 
-  const handleUndo = useCallback(async () => {
-    if (undoId === null) return;
-    clearUndoTimer();
-    const id = undoId;
-    setUndoId(null);
-    void Haptics.selectionAsync();
-    await restoreTransaction(id);
-  }, [undoId, clearUndoTimer]);
+  const handleUndo = useCallback(
+    async (id: string) => {
+      undo.clear();
+      void Haptics.selectionAsync();
+      await restoreTransaction(id);
+    },
+    [undo],
+  );
 
   const openSheet = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -150,30 +142,14 @@ export function MoneyScreen() {
         }
       />
 
-      {undoId !== null ? (
-        <Animated.View
-          entering={FadeInDown.duration(theme.motion.fast)}
-          exiting={FadeOutDown.duration(theme.motion.fast)}
-          style={[
-            styles.undoBar,
-            {
-              bottom: insets.bottom + spacing.lg,
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.border,
-            },
-            theme.elevation.high,
-          ]}
-        >
-          <Text variant="body" color="textMuted">
-            Transaction deleted
-          </Text>
-          <Pressable onPress={handleUndo} hitSlop={10} accessibilityRole="button">
-            <Text variant="bodyMedium" style={{ color: theme.colors.accent }}>
-              Undo
-            </Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
+      <UndoBar
+        target={undo.target}
+        message="Transaction deleted"
+        onUndo={handleUndo}
+        onExpire={undo.clear}
+        bottom={insets.bottom + spacing.lg}
+        right={spacing.giant + spacing.xxl}
+      />
 
       <Pressable
         onPress={openSheet}
@@ -239,17 +215,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  undoBar: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.giant + spacing.xxl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    height: 48,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

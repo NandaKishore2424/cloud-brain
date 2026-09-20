@@ -2,11 +2,12 @@ import { isNull } from 'drizzle-orm';
 
 import { addDays, nowTimestamp, todayDate, type CalendarDate } from '@/lib/date';
 import { newId } from '@/lib/id';
+import { ORDER_GAP } from '@/lib/ordering';
 import { fromRupees } from '@/lib/money';
 import { attempt, type Result } from '@/lib/result';
 
 import { db } from './client';
-import { accounts, categories, transactions } from './schema';
+import { accounts, categories, todos, transactions, type TodoPriority } from './schema';
 
 /**
  * Development seed data.
@@ -147,6 +148,74 @@ export async function seedDemoData(
     });
 
     return { inserted: rows.length, months };
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Todos                                                               */
+/* ------------------------------------------------------------------ */
+
+type SeedTodo = {
+  title: string;
+  project: string | null;
+  priority: TodoPriority;
+  /** Days from today. Negative is overdue, null is someday. */
+  dueOffset: number | null;
+  done?: boolean;
+};
+
+/**
+ * Chosen to populate every bucket — overdue, today, tomorrow, upcoming and
+ * someday — plus two projects and a completed item. Seed data whose only job is
+ * to look plausible hides the layout cases that actually break: a long title
+ * wrapping to two lines, an empty bucket, a high-priority marker next to a
+ * normal one.
+ */
+const SEED_TODOS: readonly SeedTodo[] = [
+  { title: 'Reply to the recruiter about the Thursday slot', project: 'job-hunt', priority: 'high', dueOffset: -2 },
+  { title: 'Renew bike insurance', project: null, priority: 'high', dueOffset: -1 },
+  { title: 'Write up the payment webhook retry fix', project: 'payments', priority: 'normal', dueOffset: 0 },
+  { title: 'Review the auth refactor PR', project: 'payments', priority: 'normal', dueOffset: 0 },
+  { title: 'Standup notes for the sprint review', project: 'payments', priority: 'low', dueOffset: 1 },
+  { title: 'Book dentist appointment', project: null, priority: 'normal', dueOffset: 3 },
+  { title: 'Rewrite the resume summary section with this quarter numbers', project: 'job-hunt', priority: 'normal', dueOffset: 6 },
+  { title: 'Read up on SQLite WAL checkpointing', project: null, priority: 'low', dueOffset: null },
+  { title: 'Try the new profiler build', project: null, priority: 'low', dueOffset: null },
+  { title: 'File the Q2 reimbursement', project: null, priority: 'normal', dueOffset: -4, done: true },
+];
+
+export type TodoSeedReport = { inserted: number };
+
+export async function seedDemoTodos(): Promise<Result<TodoSeedReport>> {
+  return attempt('DB_WRITE', 'Could not seed demo tasks', async () => {
+    const today = todayDate();
+    const now = nowTimestamp();
+
+    const rows = SEED_TODOS.map((spec, index) => ({
+      id: newId(),
+      title: spec.title,
+      details: null,
+      project: spec.project,
+      priority: spec.priority,
+      dueOn: spec.dueOffset === null ? null : addDays(today, spec.dueOffset),
+      // Spaced at ORDER_GAP so the seeded list starts in the same shape the
+      // ordering scheme would have produced organically.
+      sortOrder: index * ORDER_GAP,
+      completedAt: spec.done === true ? now - 86_400_000 : null,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+    await db.insert(todos).values(rows);
+    return { inserted: rows.length };
+  });
+}
+
+export async function clearTodos(): Promise<Result<number>> {
+  return attempt('DB_WRITE', 'Could not clear tasks', async () => {
+    const existing = await db.select({ id: todos.id }).from(todos);
+    await db.delete(todos);
+    return existing.length;
   });
 }
 

@@ -1,13 +1,6 @@
-import { EmptyState, Screen } from '@/design';
+import { TodosScreen } from '@/features/todos/components/TodosScreen';
 
-export default function TodosScreen() {
-  return (
-    <Screen>
-      <EmptyState
-        icon="checkbox-outline"
-        title="Todos"
-        hint="Phase 2 builds this: tasks with projects, priorities and due dates."
-      />
-    </Screen>
-  );
+/** Route file. Thin by convention — see CLAUDE.md §3. */
+export default function TodosRoute() {
+  return <TodosScreen />;
 }

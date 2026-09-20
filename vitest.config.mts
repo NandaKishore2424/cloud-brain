@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -14,6 +16,15 @@ export default defineConfig({
     globals: false,
   },
   resolve: {
-    alias: { '@': new URL('./src', import.meta.url).pathname },
+    alias: {
+      // `fileURLToPath`, not `new URL(...).pathname`.
+      //
+      // `.pathname` returns a percent-encoded URL path, so a project directory
+      // containing a space resolves to ".../Cloud%20Brain/src" — a path that
+      // does not exist, and every '@/...' import fails to resolve with a
+      // "Cannot find package" error that points at the import rather than at
+      // the alias. `fileURLToPath` decodes back to a real filesystem path.
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
 });

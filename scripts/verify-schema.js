@@ -127,6 +127,24 @@ async function main() {
   check(plan.includes('transactions_ledger_idx'), 'uses transactions_ledger_idx');
   check(!plan.includes('USE TEMP B-TREE'), 'no temp B-tree sort (index supplies the order)');
 
+  console.log('\nQuery plan — open todo list');
+  const todoPlan = db
+    .exec(
+      `EXPLAIN QUERY PLAN
+       SELECT * FROM todos
+       WHERE deleted_at IS NULL AND completed_at IS NULL
+       ORDER BY sort_order;`,
+    )[0]
+    .values.map((row) => row.join(' '))
+    .join('\n');
+
+  console.log(`    ${todoPlan.trim()}`);
+  check(todoPlan.includes('todos_open_idx'), 'uses todos_open_idx');
+  check(
+    !todoPlan.includes('USE TEMP B-TREE'),
+    'no temp B-tree sort (index supplies the order)',
+  );
+
   console.log('\nIdempotency');
   const current = one('PRAGMA user_version;');
   check(

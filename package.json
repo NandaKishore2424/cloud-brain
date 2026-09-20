@@ -40,9 +40,10 @@
     "typecheck": "tsc --noEmit",
     "db:reset": "echo \"Uninstall the app from the device to reset the local DB\"",
     "verify:schema": "node scripts/verify-schema.js",
-    "verify": "npm run typecheck && npm run test && npm run verify:schema",
+    "verify": "npm run typecheck && npm run check:layering && npm run test && npm run verify:schema",
     "test": "TZ=Asia/Kolkata vitest run",
-    "test:watch": "TZ=Asia/Kolkata vitest"
+    "test:watch": "TZ=Asia/Kolkata vitest",
+    "check:layering": "node scripts/check-layering.js"
   },
   "private": true,
   "overrides": {

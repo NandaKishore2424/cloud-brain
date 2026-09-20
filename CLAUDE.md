@@ -44,8 +44,11 @@ Break these and the project breaks. Non-negotiable.
    read path.
 3. **Every table has `id` (uuid text), `createdAt`, `updatedAt`, `deletedAt`.**
    Deletes are soft. Phase 4 sync depends on this; retrofitting it is painful.
-4. **No feature imports from another feature.** `features/money` must never import
-   from `features/todos`. Shared code goes to `src/lib` or `src/design`.
+4. **Dependencies point one way.** `features/money` must never import from
+   `features/todos`, and `src/db` / `src/lib` must never import from
+   `src/features` — infrastructure cannot depend on what is built on it.
+   Shared code moves down to `src/lib` or `src/design`.
+   Enforced by `npm run check:layering`, which runs inside `npm run verify`.
 5. **Routes are thin.** Files in `app/` wire params and render one feature
    component. Business logic lives in `src/features/*`.
 6. **No secrets in the client bundle.** Anything with an API key goes behind a
@@ -84,8 +87,10 @@ not throw. UI decides how to surface failure.
 npm start              # Expo dev server — scan QR with Expo Go
 npm run android        # open on connected device/emulator
 
-npm run verify         # typecheck + schema verification — MUST pass to end a phase
+npm run verify         # all four checks below — MUST pass to end a phase
 npm run typecheck      # tsc --noEmit
+npm run check:layering # enforces the dependency-direction rules in §2
+npm run test           # Vitest over pure modules (TZ-pinned)
 npm run verify:schema  # runs migrations against a real SQLite engine (sql.js)
 ```
 

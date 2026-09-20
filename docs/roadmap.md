@@ -29,10 +29,18 @@ The entry flow is the whole bet. Amount keypad first (it is the only required
 field), category second, everything else optional with sensible defaults. If
 logging an expense feels like filling a form, the app stops being used in a week.
 
-## Phase 2 — Todos
+## Phase 2 — Todos ✅
 
-Open/done lists, projects as free text, priority, due dates, swipe to complete,
-drag to reorder. Deferred: subtasks, recurring todos, reminders.
+Delivered. Date-bucketed list (Overdue / Today / Tomorrow / Upcoming /
+Someday), always-visible quick-add composer, project filter derived from the
+todos themselves, detail sheet, delete with undo, sparse integer ordering.
+
+**Changed from plan:** drag-to-reorder was replaced with discrete Move up /
+Move down actions — see ADR 0009. Drag and date-bucketing are two competing
+organising principles for the same gesture. The sparse-ordering layer a drag
+implementation would need is built and tested.
+
+Deferred: subtasks, recurring todos, reminders, notifications.
 
 ## Phase 3 — Notes
 
