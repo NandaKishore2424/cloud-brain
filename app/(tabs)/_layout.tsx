@@ -20,6 +20,7 @@ const TABS: readonly TabDef[] = [
   { name: 'money', title: 'Money', icon: 'wallet-outline', iconActive: 'wallet' },
   { name: 'todos', title: 'Todos', icon: 'checkbox-outline', iconActive: 'checkbox' },
   { name: 'notes', title: 'Notes', icon: 'document-text-outline', iconActive: 'document-text' },
+  { name: 'jobs', title: 'Jobs', icon: 'briefcase-outline', iconActive: 'briefcase' },
 ];
 
 export default function TabsLayout() {

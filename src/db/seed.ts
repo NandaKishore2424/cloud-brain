@@ -9,10 +9,13 @@ import { attempt, type Result } from '@/lib/result';
 import { db } from './client';
 import {
   accounts,
+  applicationEvents,
+  applications,
   categories,
   notes,
   todos,
   transactions,
+  type ApplicationStatus,
   type TodoPriority,
 } from './schema';
 
@@ -314,6 +317,118 @@ export async function clearNotes(): Promise<Result<number>> {
   return attempt('DB_WRITE', 'Could not clear notes', async () => {
     const existing = await db.select({ id: notes.id }).from(notes);
     await db.delete(notes);
+    return existing.length;
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Job applications                                                    */
+/* ------------------------------------------------------------------ */
+
+type SeedApplication = {
+  company: string;
+  role: string;
+  source: string | null;
+  location: string | null;
+  status: ApplicationStatus;
+  appliedDaysAgo: number;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  nextAction: string | null;
+  /** Days from today. Negative means an overdue follow-up. */
+  nextActionOffset: number | null;
+};
+
+/**
+ * Covers every stage that matters plus both terminal outcomes, and includes one
+ * overdue follow-up so the FOLLOW UP counter and the row flag are visible
+ * without waiting for a date to pass.
+ */
+const SEED_APPLICATIONS: readonly SeedApplication[] = [
+  { company: 'Recurse Systems', role: 'Senior Backend Engineer', source: 'Referral', location: 'Remote', status: 'offer', appliedDaysAgo: 41, salaryMin: 3200000, salaryMax: 4000000, nextAction: 'Respond to the offer', nextActionOffset: 2 },
+  { company: 'Northwind Labs', role: 'Platform Engineer', source: 'LinkedIn', location: 'Bengaluru', status: 'onsite', appliedDaysAgo: 28, salaryMin: 2800000, salaryMax: 3600000, nextAction: 'Send thank-you note', nextActionOffset: -1 },
+  { company: 'Halcyon', role: 'Backend Engineer II', source: 'Careers page', location: 'Hybrid, Chennai', status: 'tech', appliedDaysAgo: 19, salaryMin: 2400000, salaryMax: 3000000, nextAction: 'Prep system design round', nextActionOffset: 3 },
+  { company: 'Tessellate', role: 'Full Stack Engineer', source: 'Referral', location: 'Remote', status: 'screen', appliedDaysAgo: 12, salaryMin: null, salaryMax: 2800000, nextAction: 'Confirm recruiter call', nextActionOffset: 0 },
+  { company: 'Bluewater', role: 'Software Engineer', source: 'LinkedIn', location: 'Pune', status: 'applied', appliedDaysAgo: 7, salaryMin: null, salaryMax: null, nextAction: 'Follow up if no reply', nextActionOffset: 4 },
+  { company: 'Ironbark', role: 'Backend Engineer', source: 'Job board', location: 'Remote', status: 'applied', appliedDaysAgo: 3, salaryMin: null, salaryMax: null, nextAction: null, nextActionOffset: null },
+  { company: 'Vantage Point', role: 'Senior Engineer', source: 'Job board', location: 'Mumbai', status: 'rejected', appliedDaysAgo: 55, salaryMin: null, salaryMax: null, nextAction: null, nextActionOffset: null },
+  { company: 'Meridian', role: 'Backend Engineer', source: 'LinkedIn', location: 'Remote', status: 'ghosted', appliedDaysAgo: 68, salaryMin: null, salaryMax: null, nextAction: null, nextActionOffset: null },
+];
+
+export type ApplicationSeedReport = { inserted: number; events: number };
+
+export async function seedDemoApplications(): Promise<Result<ApplicationSeedReport>> {
+  return attempt('DB_WRITE', 'Could not seed demo applications', async () => {
+    const today = todayDate();
+    const now = nowTimestamp();
+
+    const appRows: (typeof applications.$inferInsert)[] = [];
+    const eventRows: (typeof applicationEvents.$inferInsert)[] = [];
+
+    for (const spec of SEED_APPLICATIONS) {
+      const id = newId();
+      const appliedOn = addDays(today, -spec.appliedDaysAgo);
+
+      appRows.push({
+        id,
+        company: spec.company,
+        role: spec.role,
+        source: spec.source,
+        location: spec.location,
+        appliedOn,
+        status: spec.status,
+        salaryMin: spec.salaryMin === null ? null : fromRupees(spec.salaryMin),
+        salaryMax: spec.salaryMax === null ? null : fromRupees(spec.salaryMax),
+        contact: null,
+        notes: null,
+        nextAction: spec.nextAction,
+        nextActionOn:
+          spec.nextActionOffset === null ? null : addDays(today, spec.nextActionOffset),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Every application opens with the day it was sent, mirroring what
+      // createApplication does, so seeded timelines look like real ones.
+      eventRows.push({
+        id: newId(),
+        applicationId: id,
+        kind: 'applied',
+        happenedOn: appliedOn,
+        note: `Applied for ${spec.role}`,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (spec.status !== 'applied') {
+        eventRows.push({
+          id: newId(),
+          applicationId: id,
+          kind: 'status_change',
+          happenedOn: addDays(today, -Math.floor(spec.appliedDaysAgo / 2)),
+          note: `Moved to ${spec.status}`,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.insert(applications).values(appRows);
+      await tx.insert(applicationEvents).values(eventRows);
+    });
+
+    return { inserted: appRows.length, events: eventRows.length };
+  });
+}
+
+export async function clearApplications(): Promise<Result<number>> {
+  return attempt('DB_WRITE', 'Could not clear applications', async () => {
+    const existing = await db.select({ id: applications.id }).from(applications);
+    // Events first: the foreign key is ON DELETE CASCADE, but deleting the
+    // children explicitly keeps this correct even if that clause ever changes.
+    await db.delete(applicationEvents);
+    await db.delete(applications);
     return existing.length;
   });
 }

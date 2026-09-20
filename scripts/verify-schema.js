@@ -111,6 +111,24 @@ async function main() {
               VALUES ('bad4', 'x', 'urgent', 1, 1);`),
     'rejects an out-of-domain todo priority',
   );
+  check(
+    accepts(`INSERT INTO applications
+               (id, company, role, applied_on, status, created_at, updated_at)
+             VALUES ('app1', 'Acme', 'Backend Engineer', '2026-09-01', 'applied', 1, 1);`),
+    'accepts a valid application',
+  );
+  check(
+    !accepts(`INSERT INTO applications
+                (id, company, role, applied_on, status, created_at, updated_at)
+              VALUES ('bad5', 'Acme', 'Dev', '2026-09-01', 'maybe', 1, 1);`),
+    'rejects an out-of-domain application status',
+  );
+  check(
+    !accepts(`INSERT INTO application_events
+                (id, application_id, kind, happened_on, created_at, updated_at)
+              VALUES ('ev1', 'no-such-app', 'note', '2026-09-01', 1, 1);`),
+    'rejects an event for an unknown application (foreign key enforced)',
+  );
 
   console.log('\nQuery plan — main ledger read');
   const plan = db
@@ -142,6 +160,24 @@ async function main() {
   check(todoPlan.includes('todos_open_idx'), 'uses todos_open_idx');
   check(
     !todoPlan.includes('USE TEMP B-TREE'),
+    'no temp B-tree sort (index supplies the order)',
+  );
+
+  console.log('\nQuery plan — active application pipeline');
+  const appPlan = db
+    .exec(
+      `EXPLAIN QUERY PLAN
+       SELECT * FROM applications
+       WHERE deleted_at IS NULL AND status = 'applied'
+       ORDER BY next_action_on;`,
+    )[0]
+    .values.map((row) => row.join(' '))
+    .join('\n');
+
+  console.log(`    ${appPlan.trim()}`);
+  check(appPlan.includes('applications_pipeline_idx'), 'uses applications_pipeline_idx');
+  check(
+    !appPlan.includes('USE TEMP B-TREE'),
     'no temp B-tree sort (index supplies the order)',
   );
 

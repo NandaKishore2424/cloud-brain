@@ -195,6 +195,57 @@ export const migrations: readonly Migration[] = [
       ...buildCategorySeed(),
     ],
   },
+  {
+    version: 3,
+    name: 'job_applications',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS applications (
+         id             TEXT PRIMARY KEY NOT NULL,
+         company        TEXT NOT NULL,
+         role           TEXT NOT NULL,
+         source         TEXT,
+         location       TEXT,
+         applied_on     TEXT NOT NULL,
+         status         TEXT NOT NULL DEFAULT 'applied'
+                        CHECK (status IN ('applied','screen','tech','onsite',
+                                          'offer','rejected','ghosted')),
+         -- Integer paise, same invariant as transactions (ADR 0006). A range
+         -- rather than a single figure because that is how postings quote it.
+         salary_min     INTEGER,
+         salary_max     INTEGER,
+         contact        TEXT,
+         notes          TEXT,
+         next_action    TEXT,
+         next_action_on TEXT,
+         created_at     INTEGER NOT NULL,
+         updated_at     INTEGER NOT NULL,
+         deleted_at     INTEGER
+       );`,
+      /*
+       * Leading `deleted_at` for the same reason as every other table, then
+       * `status` (the equality predicate the pipeline view filters on), then
+       * `next_action_on` for the overdue-follow-up scan.
+       */
+      `CREATE INDEX IF NOT EXISTS applications_pipeline_idx
+         ON applications (deleted_at, status, next_action_on);`,
+      `CREATE INDEX IF NOT EXISTS applications_applied_idx
+         ON applications (deleted_at, applied_on);`,
+
+      `CREATE TABLE IF NOT EXISTS application_events (
+         id             TEXT PRIMARY KEY NOT NULL,
+         application_id TEXT NOT NULL
+                        REFERENCES applications(id) ON DELETE CASCADE,
+         kind           TEXT NOT NULL,
+         happened_on    TEXT NOT NULL,
+         note           TEXT,
+         created_at     INTEGER NOT NULL,
+         updated_at     INTEGER NOT NULL,
+         deleted_at     INTEGER
+       );`,
+      `CREATE INDEX IF NOT EXISTS application_events_timeline_idx
+         ON application_events (application_id, deleted_at, happened_on);`,
+    ],
+  },
 ];
 
 /** Highest version defined here. The migrator brings the device up to this. */

@@ -4,8 +4,8 @@
 > Every session updates this before it ends.
 
 **Last updated:** 2026-09-20
-**Current phase:** Phase 3 — Notes
-**Status:** ✅ Complete — `npm run verify` passes (typecheck + layering + 123 tests + schema)
+**Current phase:** Phase 5 — Job applications
+**Status:** ✅ Complete — `npm run verify` passes (typecheck + layering + 141 tests + schema)
 
 ---
 
@@ -18,11 +18,11 @@
 | 2 | Todos — bucketed list, quick-add, projects, sparse ordering | ✅ Done |
 | 3 | Notes — list, full-screen editor with autosave, tags, search | ✅ Done |
 | 4 | Supabase auth + sync | ⛔ **Blocked — needs a Supabase project** |
-| 5 | Job application tracker | ⬜ Next unblocked |
+| 5 | Job application tracker | ✅ Done |
 | 6 | Voice work-log + AI summaries | ⛔ Blocked — needs a dev build + AI key |
 
-**The three local features are complete.** Everything that can be built without
-external credentials is built.
+**Every phase that can be built without external credentials is done.**
+Phases 4 and 6 are blocked on things only the author can provide — see below.
 
 ---
 
@@ -76,50 +76,52 @@ ADR 0010 records the trigger for revisiting and the preferred options.
 
 ---
 
-## Next session: Phase 5 — Job application tracker
+## What Phase 5 delivered
 
-Phase 4 is blocked (below), so **Phase 5 is the next buildable phase**. It needs
-no external services.
+**Migration 3** — `applications` and `application_events`. The first migration
+since Phase 0, and the first real exercise of the forward-migration test added
+in Phase 3, which now reports both `v1 → v3` and `v2 → v3` matching a fresh
+install.
 
-**This phase adds migration 3** — the first since Phase 0. The forward-migration
-test added in Phase 3 covers it; run `npm run verify:schema` after writing it and
-confirm the new `upgrading from v2 matches a fresh install` check appears.
+**Pure logic** (`src/features/applications/pipeline.ts`) — 18 tests
+- `STATUS_ORDER` — furthest-along first, not funnel order
+- `isActive`, `advanceStatus`, `needsFollowUp`, `groupByStatus`
 
-**Schema (migration 3):**
+**Data access** — `allApplications`, `applicationById`, `eventsForApplication`
+as query builders; `createApplication`, `setApplicationStatus`,
+`updateApplication`, `addApplicationEvent`, soft delete and restore.
 
-```sql
-applications (
-  id, company, role, source, applied_on TEXT,
-  status TEXT CHECK (status IN
-    ('applied','screen','tech','onsite','offer','rejected','ghosted')),
-  salary_min INTEGER, salary_max INTEGER,   -- integer paise, ADR 0006
-  contact, notes, next_action_on TEXT,
-  created_at, updated_at, deleted_at
-)
-application_events (
-  id, application_id REFERENCES applications(id),
-  kind, happened_on TEXT, note,
-  created_at, updated_at, deleted_at
-)
-```
+Both `createApplication` and `setApplicationStatus` write their timeline event
+**inside the same transaction** as the row change. A status that moved without a
+timeline entry is a gap that cannot be reconstructed, and the timeline is the
+entire point of the feature.
 
-Index `applications` on `(deleted_at, status, next_action_on)` and assert the
-query plan, as the other two features do.
+**UI** — `ApplicationsScreen` (stage sections, active/total/follow-up counters,
+closed-outcome toggle), `ApplicationDetailScreen` (full-screen route with stage
+picker, next-action presets and the timeline), `AddApplicationSheet`,
+`ApplicationRow`, `StatusBadge`.
 
-**Build, in this order:**
-1. `src/features/applications/api/` — mirror the todos module exactly
-2. `useApplications` — grouped by status, with a count per stage
-3. List screen — status as sections; reuse `UndoBar` and the actions-sheet pattern
-4. Detail screen — full-screen route (like the note editor), with the event timeline
-5. "Next action" surfacing — an application with a `next_action_on` in the past
-   is the job-hunt equivalent of an overdue todo
+**Navigation** — a fifth tab, `Jobs`. See the nav-pressure note in the debt
+table.
 
-**Reuse:** `Sheet`, `UndoBar` + `useUndoTarget`, `EmptyState`, `Card`,
-`formatMoney` for salary ranges, and the `orderForNewItem` helper if needed.
-
-**Deferred:** email parsing, calendar integration, document attachments.
+**Verification** — the schema check now asserts the `applications_pipeline_idx`
+query plan and the new CHECK and FOREIGN KEY constraints.
 
 ---
+
+## Next session
+
+There is no unblocked phase left. The options are:
+
+1. **Unblock Phase 4** by creating a Supabase project (see below), then build sync.
+2. **Unblock Phase 6** by setting up a dev build (see below).
+3. **Phase 7 — a real Home dashboard.** The Home tab is still the Phase 0
+   foundation-check screen. With four features live there is now something worth
+   surfacing: the month's net, today's tasks, overdue follow-ups, recent notes.
+   This needs no external services and would make the app feel finished.
+4. **Use it for a fortnight and fix what annoys you.** Genuinely the highest
+   value option — every deferred item so far is a guess about what you will not
+   miss.
 
 ## Blocked phases — what they need from the author
 
@@ -165,7 +167,8 @@ it needs the same dev build.
 | No account picker / full date picker | low | Both forced by Phase 4. |
 | `deletedAt` rows never purged | low | Needs compaction in Phase 4. |
 | No project rename (todos) | low | `project` is free text. |
-| Home tab is still the Phase 0 check screen | low | Useful as a dev surface. A real dashboard is a sensible Phase 7. |
+| Home tab is still the Phase 0 check screen | **medium** | Now the most obvious gap. A real dashboard is the natural Phase 7. |
+| Five tabs, and Phase 6 wants a sixth | medium | Android tolerates five; six is too many. Voice log should be a Home action or replace the Home tab, not a sixth tab. |
 | Icons are Expo defaults | low | Cosmetic. |
 
 ---

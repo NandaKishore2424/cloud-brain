@@ -5,11 +5,20 @@ import { StyleSheet, View } from 'react-native';
 
 import { sqlite } from '@/db/client';
 import { db } from '@/db/client';
-import { accounts, categories, notes, todos, transactions } from '@/db/schema';
 import {
+  accounts,
+  applications,
+  categories,
+  notes,
+  todos,
+  transactions,
+} from '@/db/schema';
+import {
+  clearApplications,
   clearNotes,
   clearTodos,
   clearTransactions,
+  seedDemoApplications,
   seedDemoData,
   seedDemoNotes,
   seedDemoTodos,
@@ -127,26 +136,30 @@ function DevTools() {
   );
   const todoRows = useLiveQuery(db.select({ id: todos.id }).from(todos));
   const noteRows = useLiveQuery(db.select({ id: notes.id }).from(notes));
+  const appRows = useLiveQuery(db.select({ id: applications.id }).from(applications));
 
   const transactionCount = transactionRows.data?.length ?? 0;
   const todoCount = todoRows.data?.length ?? 0;
   const noteCount = noteRows.data?.length ?? 0;
-  const count = transactionCount + todoCount + noteCount;
+  const applicationCount = appRows.data?.length ?? 0;
+  const count = transactionCount + todoCount + noteCount + applicationCount;
 
   const handleSeed = async () => {
     setBusy(true);
     const money = await seedDemoData({ months: 3 });
     const tasks = await seedDemoTodos();
     const written = await seedDemoNotes();
+    const jobs = await seedDemoApplications();
     setBusy(false);
 
     if (!money.ok) return setStatus(money.error.message);
     if (!tasks.ok) return setStatus(tasks.error.message);
     if (!written.ok) return setStatus(written.error.message);
+    if (!jobs.ok) return setStatus(jobs.error.message);
 
     setStatus(
-      `Inserted ${money.value.inserted} transactions, ${tasks.value.inserted} tasks ` +
-        `and ${written.value.inserted} notes`,
+      `Inserted ${money.value.inserted} transactions, ${tasks.value.inserted} tasks, ` +
+        `${written.value.inserted} notes and ${jobs.value.inserted} applications`,
     );
   };
 
@@ -155,14 +168,17 @@ function DevTools() {
     const money = await clearTransactions();
     const tasks = await clearTodos();
     const written = await clearNotes();
+    const jobs = await clearApplications();
     setBusy(false);
 
     if (!money.ok) return setStatus(money.error.message);
     if (!tasks.ok) return setStatus(tasks.error.message);
     if (!written.ok) return setStatus(written.error.message);
+    if (!jobs.ok) return setStatus(jobs.error.message);
 
     setStatus(
-      `Removed ${money.value} transactions, ${tasks.value} tasks and ${written.value} notes`,
+      `Removed ${money.value} transactions, ${tasks.value} tasks, ` +
+        `${written.value} notes and ${jobs.value} applications`,
     );
   };
 
@@ -173,10 +189,9 @@ function DevTools() {
         <Text variant="heading">Dev tools</Text>
       </View>
       <Text variant="body" color="textMuted" style={styles.cardIntro}>
-        Stripped from release builds. {transactionCount} transaction
-        {transactionCount === 1 ? '' : 's'}, {todoCount} task
-        {todoCount === 1 ? '' : 's'} and {noteCount} note
-        {noteCount === 1 ? '' : 's'} stored.
+        Stripped from release builds. {transactionCount} transactions,{' '}
+        {todoCount} tasks, {noteCount} notes and {applicationCount} applications
+        stored.
       </Text>
 
       <Divider spacingY="lg" />

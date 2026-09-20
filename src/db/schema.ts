@@ -171,6 +171,91 @@ export const notes = sqliteTable(
 );
 
 /* ================================================================== */
+/* Job applications                                                   */
+/* ================================================================== */
+
+/**
+ * Pipeline stages, in order.
+ *
+ * `ghosted` is a distinct outcome from `rejected` on purpose: "they stopped
+ * replying" and "they said no" are different signals when you are trying to
+ * work out which sources are worth your time.
+ */
+export type ApplicationStatus =
+  | 'applied'
+  | 'screen'
+  | 'tech'
+  | 'onsite'
+  | 'offer'
+  | 'rejected'
+  | 'ghosted';
+
+export const applications = sqliteTable(
+  'applications',
+  {
+    id: text('id').primaryKey(),
+    company: text('company').notNull(),
+    role: text('role').notNull(),
+    /** Where it came from: referral, LinkedIn, careers page. Free text. */
+    source: text('source'),
+    location: text('location'),
+    appliedOn: text('applied_on').$type<CalendarDate>().notNull(),
+    status: text('status').$type<ApplicationStatus>().notNull().default('applied'),
+    /** Integer paise, same invariant as transactions. */
+    salaryMin: integer('salary_min').$type<Paise>(),
+    salaryMax: integer('salary_max').$type<Paise>(),
+    contact: text('contact'),
+    notes: text('notes'),
+    /** What to do next, and when. The job-hunt equivalent of a due date. */
+    nextAction: text('next_action'),
+    nextActionOn: text('next_action_on').$type<CalendarDate>(),
+    ...lifecycle,
+  },
+  (table) => [
+    index('applications_pipeline_idx').on(
+      table.deletedAt,
+      table.status,
+      table.nextActionOn,
+    ),
+    index('applications_applied_idx').on(table.deletedAt, table.appliedOn),
+  ],
+);
+
+export type ApplicationEventKind =
+  | 'applied'
+  | 'status_change'
+  | 'interview'
+  | 'message'
+  | 'note';
+
+/**
+ * Timeline entry for an application.
+ *
+ * Status changes write one of these automatically, so the history of a company
+ * is a free by-product of using the tracker rather than something that has to
+ * be maintained by hand. Six months later, "when did they first reply" is a
+ * query rather than a memory.
+ */
+export const applicationEvents = sqliteTable(
+  'application_events',
+  {
+    id: text('id').primaryKey(),
+    applicationId: text('application_id').notNull(),
+    kind: text('kind').$type<ApplicationEventKind>().notNull(),
+    happenedOn: text('happened_on').$type<CalendarDate>().notNull(),
+    note: text('note'),
+    ...lifecycle,
+  },
+  (table) => [
+    index('application_events_timeline_idx').on(
+      table.applicationId,
+      table.deletedAt,
+      table.happenedOn,
+    ),
+  ],
+);
+
+/* ================================================================== */
 /* Meta                                                               */
 /* ================================================================== */
 
@@ -198,3 +283,9 @@ export type NewTodo = typeof todos.$inferInsert;
 
 export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
+
+export type Application = typeof applications.$inferSelect;
+export type NewApplication = typeof applications.$inferInsert;
+
+export type ApplicationEvent = typeof applicationEvents.$inferSelect;
+export type NewApplicationEvent = typeof applicationEvents.$inferInsert;

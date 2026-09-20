@@ -66,6 +66,10 @@ export default function RootLayout() {
             name="note/[id]"
             options={{ animation: 'slide_from_right' }}
           />
+          <Stack.Screen
+            name="application/[id]"
+            options={{ animation: 'slide_from_right' }}
+          />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

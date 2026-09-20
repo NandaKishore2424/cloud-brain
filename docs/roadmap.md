@@ -70,10 +70,16 @@ The hard one.
 Prerequisite already in place: UUIDv7 keys, `updated_at` on every row, soft
 deletes.
 
-## Phase 5 — Job applications
+## Phase 5 — Job applications ✅
 
-Companies, roles, status pipeline, per-application event timeline, next-action
-reminders.
+Delivered. Pipeline grouped by stage (furthest-along first), per-application
+timeline written automatically on every status change, next-action tracking
+with overdue follow-up flagging, salary ranges in integer paise.
+
+**Adds migration 3** — the first since Phase 0, and the first exercise of the
+forward-migration test added in Phase 3.
+
+Deferred: email parsing, calendar integration, document attachments.
 
 ## Phase 6 — Voice work log
 
