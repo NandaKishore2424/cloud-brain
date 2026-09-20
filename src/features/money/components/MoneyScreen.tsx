@@ -1,6 +1,6 @@
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,7 +49,12 @@ import { TransactionRow } from './TransactionRow';
  * entirely, because the outer view gives the inner one unbounded height and
  * every row renders at once.
  */
-export function MoneyScreen() {
+export type MoneyScreenProps = {
+  /** Open the entry sheet on arrival. Set by `?compose=1` from the dashboard. */
+  composeOnMount?: boolean;
+};
+
+export function MoneyScreen({ composeOnMount = false }: MoneyScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -60,6 +65,7 @@ export function MoneyScreen() {
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [actionsFor, setActionsFor] = useState<TransactionListItem | null>(null);
+  const [editing, setEditing] = useState<TransactionListItem | null>(null);
   const undo = useUndoTarget();
 
   /**
@@ -91,6 +97,12 @@ export function MoneyScreen() {
    * yesterday, the same subscription, the same lunch. Faster even than the
    * entry sheet, because nothing has to be chosen at all.
    */
+  const handleEdit = useCallback((item: TransactionListItem) => {
+    setActionsFor(null);
+    setEditing(item);
+    setSheetVisible(true);
+  }, []);
+
   const handleRepeat = useCallback(async (item: TransactionListItem) => {
     setActionsFor(null);
     const result = await repeatTransaction(item.id);
@@ -110,12 +122,33 @@ export function MoneyScreen() {
     [undo],
   );
 
+  /**
+   * Honour `?compose=1` exactly once.
+   *
+   * The param stays in the URL after navigation, so without the ref the sheet
+   * would reopen every time this tab regains focus — including immediately
+   * after the user dismisses it.
+   */
+  const composeHandled = useRef(false);
+  useEffect(() => {
+    if (!composeOnMount || composeHandled.current) return;
+    composeHandled.current = true;
+    setEditing(null);
+    setSheetVisible(true);
+  }, [composeOnMount]);
+
   const openSheet = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditing(null);
     setSheetVisible(true);
   }, []);
 
-  const closeSheet = useCallback(() => setSheetVisible(false), []);
+  const closeSheet = useCallback(() => {
+    setSheetVisible(false);
+    // Cleared after closing rather than before, so the sheet's exit animation
+    // plays against the values the user was just looking at.
+    setEditing(null);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: LedgerRow }) =>
@@ -194,7 +227,11 @@ export function MoneyScreen() {
         <Icon name="add" size={26} color="textOnAccent" />
       </Pressable>
 
-      <AddTransactionSheet visible={sheetVisible} onClose={closeSheet} />
+      <AddTransactionSheet
+        visible={sheetVisible}
+        onClose={closeSheet}
+        editing={editing}
+      />
 
       {/* Long-press opens a menu rather than deleting outright, which also
           makes this consistent with Notes and Jobs. Delete still costs one
@@ -209,6 +246,15 @@ export function MoneyScreen() {
           </Text>
 
           <Divider spacingY="sm" />
+
+          <Pressable
+            onPress={() => actionsFor && handleEdit(actionsFor)}
+            accessibilityRole="button"
+            style={[styles.action, { backgroundColor: theme.colors.surfaceAlt }]}
+          >
+            <Icon name="create-outline" size={17} color="textMuted" />
+            <Text variant="body">Edit</Text>
+          </Pressable>
 
           <Pressable
             onPress={() => actionsFor && handleRepeat(actionsFor)}

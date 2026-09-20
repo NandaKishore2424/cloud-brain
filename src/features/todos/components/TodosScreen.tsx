@@ -1,15 +1,26 @@
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EmptyState, Screen, Text, UndoBar, spacing, useTheme, useUndoTarget } from '@/design';
+import {
+  EmptyState,
+  Icon,
+  Screen,
+  Text,
+  UndoBar,
+  radii,
+  spacing,
+  useTheme,
+  useUndoTarget,
+} from '@/design';
 import { todayDate } from '@/lib/date';
 
 import {
   createTodo,
   moveTodo,
+  rescheduleOverdue,
   restoreTodo,
   setTodoCompleted,
   softDeleteTodo,
@@ -38,7 +49,12 @@ import { TodoRow } from './TodoRow';
  * quick-add bar lands directly above it with no `KeyboardAvoidingView` and no
  * measuring.
  */
-export function TodosScreen() {
+export type TodosScreenProps = {
+  /** Focus the quick-add field on arrival. Set by `?compose=1`. */
+  composeOnMount?: boolean;
+};
+
+export function TodosScreen({ composeOnMount = false }: TodosScreenProps) {
   const insets = useSafeAreaInsets();
 
   const [view, setView] = useState<TodoView>('open');
@@ -119,6 +135,17 @@ export function TodosScreen() {
     [undo],
   );
 
+  /**
+   * Move the whole overdue pile to today.
+   *
+   * Triage in one tap. Rescheduling eleven tasks individually is the friction
+   * that makes people abandon a todo list rather than maintain it.
+   */
+  const handleRescheduleOverdue = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await rescheduleOverdue(todayDate(), todayDate());
+  }, []);
+
   const handleSave = useCallback(async (id: string, patch: UpdateTodoPatch) => {
     const result = await updateTodo(id, patch);
     return result.ok;
@@ -156,11 +183,17 @@ export function TodosScreen() {
   const renderOpenItem = useCallback(
     ({ item }: { item: Row<TodoListItem> }) =>
       item.kind === 'header' ? (
-        <BucketHeader label={item.label} count={item.count} />
+        <BucketHeader
+          label={item.label}
+          count={item.count}
+          onReschedule={
+            item.bucket === 'overdue' ? handleRescheduleOverdue : undefined
+          }
+        />
       ) : (
         <TodoRow item={item.item} onToggle={handleToggle} onOpen={setDetail} />
       ),
-    [handleToggle],
+    [handleToggle, handleRescheduleOverdue],
   );
 
   const renderDoneItem = useCallback(
@@ -238,7 +271,11 @@ export function TodosScreen() {
         )}
       </View>
 
-      <QuickAddBar onSubmit={handleQuickAdd} activeProject={project} />
+      <QuickAddBar
+        onSubmit={handleQuickAdd}
+        activeProject={project}
+        autoFocus={composeOnMount}
+      />
 
       <UndoBar
         target={undo.target}
@@ -273,20 +310,45 @@ function doneKeyExtractor(item: TodoListItem): string {
   return item.id;
 }
 
-function BucketHeader({ label, count }: { label: string; count: number }) {
+function BucketHeader({
+  label,
+  count,
+  onReschedule,
+}: {
+  label: string;
+  count: number;
+  /** Present only on the overdue bucket. */
+  onReschedule?: () => void;
+}) {
   const theme = useTheme();
+  const isOverdue = onReschedule !== undefined;
 
   return (
     <View style={[styles.bucketHeader, { backgroundColor: theme.colors.bg }]}>
-      <Text
-        variant="caption"
-        color={label === 'Overdue' ? 'negative' : 'textSubtle'}
-      >
+      <Text variant="caption" color={isOverdue ? 'negative' : 'textSubtle'}>
         {label.toUpperCase()}
       </Text>
-      <Text variant="caption" color="textSubtle" numeric>
-        {count}
-      </Text>
+
+      <View style={styles.bucketRight}>
+        {onReschedule !== undefined ? (
+          <Pressable
+            onPress={onReschedule}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Move ${count} overdue ${count === 1 ? 'task' : 'tasks'} to today`}
+            style={[styles.reschedule, { backgroundColor: theme.colors.negativeSoft }]}
+          >
+            <Icon name="today-outline" size={11} color="negative" />
+            <Text variant="caption" style={{ color: theme.colors.negative }}>
+              MOVE TO TODAY
+            </Text>
+          </Pressable>
+        ) : null}
+
+        <Text variant="caption" color="textSubtle" numeric>
+          {count}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -299,6 +361,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+  },
+  bucketRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  reschedule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
   },
   doneHeader: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   empty: { paddingTop: spacing.xxxl, minHeight: 240 },

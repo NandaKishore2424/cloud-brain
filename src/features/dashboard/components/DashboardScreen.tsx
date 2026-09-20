@@ -36,6 +36,29 @@ export function DashboardScreen() {
         <Text variant="title">{greeting}</Text>
       </View>
 
+      {/* Capture without a tab switch.
+          These navigate with `?compose=1` rather than rendering another
+          feature's sheet — the dashboard is forbidden from importing
+          `features/money` or `features/todos` (CLAUDE.md §2), and navigation
+          is the right way for one feature to ask another to act. */}
+      <View style={styles.capture}>
+        <CaptureButton
+          icon="wallet-outline"
+          label="Expense"
+          onPress={() => router.push('/money?compose=1')}
+        />
+        <CaptureButton
+          icon="checkbox-outline"
+          label="Task"
+          onPress={() => router.push('/todos?compose=1')}
+        />
+        <CaptureButton
+          icon="document-text-outline"
+          label="Note"
+          onPress={() => router.push('/notes')}
+        />
+      </View>
+
       {data.isEmpty ? (
         <View style={styles.emptyWrap}>
           <EmptyState
@@ -200,6 +223,38 @@ export function DashboardScreen() {
   );
 }
 
+function CaptureButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: 'wallet-outline' | 'checkbox-outline' | 'document-text-outline';
+  label: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`New ${label.toLowerCase()}`}
+      style={({ pressed }) => [
+        styles.captureButton,
+        {
+          backgroundColor: pressed ? theme.colors.accentSoft : theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <Icon name={icon} size={17} color="accent" />
+      <Text variant="label" color="textMuted">
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function greetingFor(hour: number): string {
   if (hour < 5) return 'Still up?';
   if (hour < 12) return 'Good morning';
@@ -285,6 +340,17 @@ function MoneyStat({
 const styles = StyleSheet.create({
   header: { paddingTop: spacing.lg, paddingBottom: spacing.xl, gap: spacing.xxs },
   emptyWrap: { paddingVertical: spacing.giant },
+  capture: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  captureButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    height: 46,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   card: { marginBottom: spacing.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   spacer: { flex: 1 },

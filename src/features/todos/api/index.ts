@@ -4,6 +4,7 @@ export {
   moveTodo,
   openTodos,
   projectsInUse,
+  rescheduleOverdue,
   restoreTodo,
   setTodoCompleted,
   softDeleteTodo,

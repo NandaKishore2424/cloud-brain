@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import { todos, type Todo, type TodoPriority } from '@/db/schema';
@@ -201,6 +201,58 @@ export async function restoreTodo(id: string): Promise<Result<void>> {
   );
 
   return result.ok ? ok(undefined) : result;
+}
+
+/**
+ * Push every overdue task to a new date in one write.
+ *
+ * Overdue tasks accumulate — a week away and there are eleven of them, each
+ * needing the detail sheet opened, a date picked and the sheet dismissed. That
+ * friction is why people abandon todo apps rather than triage them: the pile
+ * becomes evidence of failure instead of a list of work.
+ *
+ * One statement, not a read-then-loop. The predicate does the selection, so
+ * this is a single UPDATE regardless of how many rows match, and there is no
+ * window in which a task completed mid-operation gets rescheduled anyway.
+ *
+ * Only *open* tasks move. A task completed late is finished, and dragging its
+ * due date forward would rewrite history.
+ */
+export async function rescheduleOverdue(
+  today: CalendarDate,
+  to: CalendarDate,
+): Promise<Result<number>> {
+  const now = nowTimestamp();
+
+  const result = await attempt('DB_WRITE', 'Could not reschedule those tasks', async () => {
+    const affected = await db
+      .select({ id: todos.id })
+      .from(todos)
+      .where(
+        and(
+          isNull(todos.deletedAt),
+          isNull(todos.completedAt),
+          lt(todos.dueOn, today),
+        ),
+      );
+
+    if (affected.length === 0) return 0;
+
+    await db
+      .update(todos)
+      .set({ dueOn: to, updatedAt: now })
+      .where(
+        and(
+          isNull(todos.deletedAt),
+          isNull(todos.completedAt),
+          lt(todos.dueOn, today),
+        ),
+      );
+
+    return affected.length;
+  });
+
+  return result.ok ? ok(result.value) : result;
 }
 
 /* ------------------------------------------------------------------ */

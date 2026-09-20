@@ -156,6 +156,20 @@ It runs inside `npm run verify`, so a regression fails the build.
   ledger row now opens a Repeat/Delete menu, which also makes Money consistent
   with Notes and Jobs.
 
+**Usability, second round**
+- **Edit a transaction.** `updateTransaction` existed but nothing called it —
+  fixing a typo meant delete-and-re-add. The entry sheet now takes an optional
+  `editing` transaction and switches mutation, rather than a second near-
+  identical sheet that would drift. Closes the "no edit flow" debt item.
+- **Move overdue to today.** One tap on the overdue bucket header reschedules
+  the whole pile in a single UPDATE. Rescheduling eleven tasks individually is
+  the friction that makes people abandon a list rather than triage it.
+- **Quick capture from Home.** Expense / Task / Note buttons on the dashboard.
+  They navigate with `?compose=1` rather than importing another feature's sheet,
+  which the dependency rule forbids — the route reads the param and the screen
+  opens its own surface. Honoured once via a ref, or the sheet would reopen
+  every time the tab regains focus.
+
 **Hardening**
 - `ErrorBoundary` at the root. The one class component in the codebase, with a
   comment saying why. Recovery is honest because the app is local-first.

@@ -16,6 +16,8 @@ export type QuickAddBarProps = {
   onSubmit: (submission: QuickAddSubmission) => Promise<boolean>;
   /** Active project filter. New tasks inherit it. */
   activeProject: string | null;
+  /** Take focus on mount — used when arriving from the dashboard. */
+  autoFocus?: boolean;
 };
 
 /**
@@ -33,7 +35,11 @@ export type QuickAddBarProps = {
  * shrinks the window when the keyboard opens, so a flex layout puts this
  * directly above the keyboard with no `KeyboardAvoidingView` and no measuring.
  */
-export function QuickAddBar({ onSubmit, activeProject }: QuickAddBarProps) {
+export function QuickAddBar({
+  onSubmit,
+  activeProject,
+  autoFocus = false,
+}: QuickAddBarProps) {
   const theme = useTheme();
   const inputRef = useRef<TextInput>(null);
 
@@ -131,6 +137,7 @@ export function QuickAddBar({ onSubmit, activeProject }: QuickAddBarProps) {
           <Icon name="add" size={18} color={focused ? 'accent' : 'textSubtle'} />
           <TextInput
             ref={inputRef}
+            autoFocus={autoFocus}
             value={title}
             onChangeText={setTitle}
             onFocus={() => setFocused(true)}

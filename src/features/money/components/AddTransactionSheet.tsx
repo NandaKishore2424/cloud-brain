@@ -7,7 +7,12 @@ import { Button, Icon, Sheet, Text, radii, spacing, useTheme } from '@/design';
 import { addDays, todayDate, formatDayHeading, type CalendarDate } from '@/lib/date';
 import { asPaise, formatAmountInput, formatMoney, parseAmount, toAmountInput } from '@/lib/money';
 
-import { createTransaction, getDefaultAccountId } from '../api';
+import {
+  createTransaction,
+  getDefaultAccountId,
+  updateTransaction,
+  type TransactionListItem,
+} from '../api';
 import { applyAmountKey, isSaveableAmount, type AmountKey } from '../amountInput';
 import { useCategoriesByRecency, useFrequentAmounts } from '../hooks';
 import { AmountKeypad } from './AmountKeypad';
@@ -17,6 +22,15 @@ import { TypeToggle } from './TypeToggle';
 export type AddTransactionSheetProps = {
   visible: boolean;
   onClose: () => void;
+  /**
+   * When set, the sheet edits this transaction instead of creating one.
+   *
+   * One sheet for both jobs rather than two nearly identical ones: the fields,
+   * validation, keypad and category rules are the same, and the only real
+   * differences are what seeds the state and which mutation runs. Two copies
+   * would drift the moment one gained a field.
+   */
+  editing?: TransactionListItem | null;
 };
 
 /**
@@ -40,7 +54,11 @@ export type AddTransactionSheetProps = {
  * letting the system keyboard cover it. Two keyboards fighting for the same
  * space is the usual failure of this layout.
  */
-export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetProps) {
+export function AddTransactionSheet({
+  visible,
+  onClose,
+  editing = null,
+}: AddTransactionSheetProps) {
   const theme = useTheme();
 
   const [type, setType] = useState<TransactionType>('expense');
@@ -61,11 +79,19 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
   useEffect(() => {
     if (!visible) return;
 
-    setType('expense');
-    setBuffer('');
-    setCategoryId(null);
-    setNote('');
-    setOccurredOn(todayDate());
+    if (editing !== null) {
+      setType(editing.type);
+      setBuffer(toAmountInput(asPaise(editing.amount)));
+      setCategoryId(editing.categoryId);
+      setNote(editing.note ?? '');
+      setOccurredOn(editing.occurredOn);
+    } else {
+      setType('expense');
+      setBuffer('');
+      setCategoryId(null);
+      setNote('');
+      setOccurredOn(todayDate());
+    }
     setNoteFocused(false);
     setSaving(false);
     setError(null);
@@ -75,17 +101,19 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
       if (result.ok) setAccountId(result.value);
       else setError(result.error.message);
     });
-  }, [visible]);
+  }, [visible, editing]);
 
   // Pre-select the most recently used category. After a few days of real use
   // this is right most of the time, which removes a tap from the common path.
   // The chip is visibly highlighted directly above the keypad, so an incorrect
   // guess is obvious before saving rather than discovered later.
   useEffect(() => {
-    if (categoryId !== null) return;
+    // Never pre-select while editing — the transaction's own category is the
+    // right answer, including when it is deliberately null.
+    if (editing !== null || categoryId !== null) return;
     const first = categories[0];
     if (first) setCategoryId(first.id);
-  }, [categories, categoryId]);
+  }, [categories, categoryId, editing]);
 
   const handleTypeChange = useCallback((next: TransactionType) => {
     setType(next);
@@ -138,14 +166,23 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
     }
 
     setSaving(true);
-    const result = await createTransaction({
-      amount: parsed.value,
-      type,
-      accountId,
-      categoryId,
-      occurredOn,
-      note,
-    });
+    const result =
+      editing === null
+        ? await createTransaction({
+            amount: parsed.value,
+            type,
+            accountId,
+            categoryId,
+            occurredOn,
+            note,
+          })
+        : await updateTransaction(editing.id, {
+            amount: parsed.value,
+            type,
+            categoryId,
+            occurredOn,
+            note,
+          });
     setSaving(false);
 
     if (!result.ok) {
@@ -156,7 +193,7 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onClose();
-  }, [buffer, accountId, type, categoryId, occurredOn, note, onClose]);
+  }, [buffer, accountId, type, categoryId, occurredOn, note, editing, onClose]);
 
   const amountColor = useMemo(
     () =>
@@ -292,7 +329,7 @@ export function AddTransactionSheet({ visible, onClose }: AddTransactionSheetPro
 
         <View style={styles.padded}>
           <Button
-            label={saving ? 'Saving' : 'Save'}
+            label={saving ? 'Saving' : editing === null ? 'Save' : 'Update'}
             onPress={handleSave}
             disabled={!canSave}
             loading={saving}
