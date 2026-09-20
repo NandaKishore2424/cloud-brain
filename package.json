@@ -26,6 +26,7 @@
     "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/react": "~19.2.2",
     "sql.js": "^1.14.2",
     "typescript": "~6.0.3",
@@ -38,12 +39,13 @@
     "typecheck": "tsc --noEmit",
     "db:reset": "echo \"Uninstall the app from the device to reset the local DB\"",
     "verify:schema": "node scripts/verify-schema.js",
-    "verify": "npm run typecheck && npm run check:layering && npm run check:contrast && npm run test && npm run verify:schema",
+    "verify": "npm run typecheck && npm run check:layering && npm run check:contrast && npm run test && npm run verify:schema && npm run verify:rls",
     "test": "TZ=Asia/Kolkata vitest run",
     "test:watch": "TZ=Asia/Kolkata vitest",
     "check:layering": "node scripts/check-layering.js",
     "bench:search": "node scripts/bench-search.js",
-    "check:contrast": "node scripts/check-contrast.js"
+    "check:contrast": "node scripts/check-contrast.js",
+    "verify:rls": "node scripts/verify-rls.js"
   },
   "private": true,
   "overrides": {
