@@ -179,6 +179,7 @@ makes the first launch the real sync test: sign in, and the data should arrive.
 | Five tabs, Phase 6 wants a sixth | medium | Voice log should be a Home action, not a tab. |
 | `deletedAt` rows never purged | low | Needs a way to confirm a tombstone reached all replicas. |
 | Icons are Expo defaults | low | Cosmetic. |
+| **No browser preview** | low | Tried 2026-09-21 and abandoned. Needs `react-native-web`, a proxy adding COOP/COEP to the HTML document, and a web-only entry warming the SQLite worker (sync calls spin ~100ms and always time out cold). Even then it fails on `withExclusiveTransactionAsync is not supported on web` (the migration runner) and SecureStore having no web build. Making it work means changing migration code for a platform the app never ships to. Test on the phone. |
 
 ---
 
