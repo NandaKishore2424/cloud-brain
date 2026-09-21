@@ -47,7 +47,24 @@ npx expo start --port 8095
 5. Home → **Work** → dictate with the keyboard mic → Save → Summarise with AI
 6. First launch creates the database cleanly (the path that crashed in Phase 0)
 
+7. Home: the four capture buttons (icon above label) fit, including with a
+   larger system font size (Settings → Display → Font size)
+
 Then the APK — see "Next step — the APK" below.
+
+**Browser preview, for screenshots only (2026-09-21).** It can be made to run,
+temporarily and uncommitted: `react-native-web` + `@expo/metro-runtime`, `.wasm`
+in Metro's assetExts, an `index.web.js` that warms SQLite's worker with
+`openDatabaseAsync` before requiring `expo-router/entry`, a `migrator.web.ts`
+using `withTransactionAsync`, a proxy adding COOP/COEP, and Metro without
+`CI=1` (CI mode does not watch files). It also needs a one-line patch to
+`node_modules/expo-sqlite/web/WorkerChannel.ts`: it writes the sync result's
+length with `Uint8Array.set(new Uint32Array([length]))`, which stores only the
+low byte, so any result over 255 bytes is truncated to `length % 256` and fails
+as "Unterminated string in JSON". Web-only — Android never runs that code —
+and worth reporting upstream. In that browser run the dev panel's "Clear all"
+appeared to do nothing and its counts disagreed with Home; unconfirmed whether
+that is browser-only. Check on the phone.
 
 ---
 

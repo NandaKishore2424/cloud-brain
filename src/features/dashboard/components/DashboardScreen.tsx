@@ -1,7 +1,18 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Card, Divider, EmptyState, Icon, Screen, Text, radii, spacing, useTheme } from '@/design';
+import {
+  Card,
+  Divider,
+  EmptyState,
+  Icon,
+  MIN_TOUCH_TARGET,
+  Screen,
+  Text,
+  radii,
+  spacing,
+  useTheme,
+} from '@/design';
 import { formatShortDate, toCalendarDate, todayDate } from '@/lib/date';
 import { asPaise, formatMoney, formatMoneyCompact } from '@/lib/money';
 
@@ -266,8 +277,8 @@ function CaptureButton({
         },
       ]}
     >
-      <Icon name={icon} size={17} color="accent" />
-      <Text variant="label" color="textMuted">
+      <Icon name={icon} size={19} color="accent" />
+      <Text variant="label" color="textMuted" numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -367,13 +378,17 @@ const styles = StyleSheet.create({
   headerAction: { paddingBottom: spacing.xxs },
   emptyWrap: { paddingVertical: spacing.giant },
   capture: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  // Icon above label, not beside it. Four side-by-side buttons leave ~80px
+  // each on a 375px screen, and "Expense" plus an icon measured 78px of that —
+  // one step of Android's font-size setting away from overflowing. Stacked,
+  // each label gets the button's full width.
   captureButton: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    height: 46,
+    gap: spacing.xxs,
+    minHeight: MIN_TOUCH_TARGET + spacing.sm,
+    paddingVertical: spacing.sm,
     borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
