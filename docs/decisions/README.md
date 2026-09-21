@@ -21,3 +21,4 @@ supersedes it and say so in both.
 | [0011](0011-colour-system.md) | Colour system verified against WCAG in CI | Accepted |
 | [0012](0012-cursor-sync-no-outbox.md) | Cursor-based sync; last-write-wins in SQL on both ends | Accepted |
 | [0013](0013-email-otp-auth.md) | Email one-time code for authentication | Accepted |
+| [0014](0014-work-log-keyboard-voice-and-ai-handoff.md) | Work log: keyboard dictation for voice, share-sheet hand-off for AI | Accepted |

@@ -71,6 +71,11 @@ export function DashboardScreen() {
           label="Note"
           onPress={() => router.push('/notes')}
         />
+        <CaptureButton
+          icon="briefcase-outline"
+          label="Work"
+          onPress={() => router.push('/worklog?compose=1')}
+        />
       </View>
 
       {data.isEmpty ? (
@@ -242,7 +247,7 @@ function CaptureButton({
   label,
   onPress,
 }: {
-  icon: 'wallet-outline' | 'checkbox-outline' | 'document-text-outline';
+  icon: 'wallet-outline' | 'checkbox-outline' | 'document-text-outline' | 'briefcase-outline';
   label: string;
   onPress: () => void;
 }) {
@@ -252,7 +257,7 @@ function CaptureButton({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`New ${label.toLowerCase()}`}
+      accessibilityLabel={label === 'Work' ? 'Log work' : `New ${label.toLowerCase()}`}
       style={({ pressed }) => [
         styles.captureButton,
         {

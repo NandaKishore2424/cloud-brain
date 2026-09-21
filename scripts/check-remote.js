@@ -36,6 +36,7 @@ const SYNCED_TABLES = [
   'notes',
   'applications',
   'application_events',
+  'work_logs',
 ];
 
 let failures = 0;

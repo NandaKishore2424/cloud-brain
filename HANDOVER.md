@@ -3,10 +3,9 @@
 > Living state file. **Read after `CLAUDE.md`, before touching code.**
 > Every session updates this before it ends.
 
-**Last updated:** 2026-09-20
-**Current phase:** Phase 4 — Supabase sync · **BUILT, NOT YET RUN ON A DEVICE**
-**Status:** 🟡 Code complete and verified offline. Two setup steps and one
-on-device test stand between this and Done.
+**Last updated:** 2026-09-21
+**Current phase:** none — **all six features built.** Next is on-device testing.
+**Status:** 🟢 Verified offline. Not yet exercised on a phone by anyone.
 
 ---
 
@@ -18,17 +17,73 @@ on-device test stand between this and Done.
 | 1 | Money | ✅ |
 | 2 | Todos | ✅ |
 | 3 | Notes | ✅ |
-| 4 | **Supabase sync** | 🟡 **built — needs the two steps below** |
+| 4 | Supabase sync | ✅ built · **switched off by choice** (below) |
 | 5 | Job applications | ✅ |
-| 6 | Voice work-log + AI summaries | ⛔ needs a dev build + AI key |
+| 6 | **Work log + AI weekly summaries** | ✅ ADR 0014 |
 | 7 | Home dashboard | ✅ |
 | 8 | Usability, colour system, hardening | ✅ |
 
-`npm run verify` passes: typecheck · layering · contrast (38 pairs) ·
-**180 tests** · schema · RLS (30 checks).
-`npm run check:remote` passes: **16 checks against the live project**.
-`npm run verify:rls` now also asserts every sync function has a pinned
-`search_path`, so a later migration cannot silently drop it.
+`npm run verify` passes: typecheck · layering + live-query deps · contrast
+(40 pairs) · **207 tests** · schema (4 migrations) · RLS (incl. work_logs).
+`npm run check:remote` passes against the live project, `work_logs` included.
+
+## Next: test on the phone, in Expo Go
+
+**Port 8081 is taken on the development machine** by an unrelated local service
+(a Java app answering with JSON errors). `npx expo start` will offer another
+port; accept it, or pass one explicitly:
+
+```bash
+npx expo start --port 8095
+```
+
+**Highest-value checks**, in order — the first four were broken until
+2026-09-21 and are fixed but not yet seen working on a device:
+
+1. Money → previous month: the list and totals change
+2. Notes → search: the list filters as you type
+3. Add expense → switch to Income: the categories switch too
+4. Add expense → pick a category you have used before: amount suggestions appear
+5. Home → **Work** → dictate with the keyboard mic → Save → Summarise with AI
+6. First launch creates the database cleanly (the path that crashed in Phase 0)
+
+Then the APK — see "Next step — the APK" below.
+
+---
+
+## Phase 6 — what exists
+
+```
+src/features/worklog/
+  summary.ts         pure: groupByDay, toRows, normaliseBody, share text, AI prompt
+  summary.test.ts    16 assertions
+  api/worklog.ts     workLogForWeek (query), create / update / softDelete / restore
+  hooks/useWorkLog   week navigation (an anchor day; the range is derived)
+  components/        WorkLogScreen
+app/worklog.tsx      route; ?compose=1 focuses the field
+```
+
+- Local migration **4** (`work_logs`), Postgres **0005** — applied to the live
+  project and verified, and registered in `SYNC_TABLES`, so switching sync on
+  needs no server work.
+- `src/lib/date.ts` gained `weekBounds`, `shiftWeek`, `formatWeekLabel`,
+  `formatWeekday` (Monday-first; tested across month and year boundaries and
+  the Sunday edge that `getDay()` gets wrong).
+- **Voice = the keyboard's mic. AI = a share-sheet hand-off.** Not a stopgap —
+  read ADR 0014 before "upgrading" either.
+
+**Deliberately deferred:** a nightly reminder (`expo-notifications`), and an
+in-app summary via an Edge Function — only reasonable once sync is on, because
+an Edge Function callable with the public key is callable by anyone.
+
+## The live-query bug (fixed 2026-09-21, commit 86c6c22)
+
+Drizzle's `useLiveQuery(query, deps = [])` subscribes once when `deps` is
+omitted, and no call site passed it — so month navigation, notes search, the
+income/expense category switch and suggested amounts were all frozen on their
+first result. Every call site now passes deps, and `check:layering` refuses a
+call without them. Found by reading the library while building Phase 6, not by
+a test: none of the 180 tests rendered a screen (ADR 0008).
 
 ---
 
@@ -171,12 +226,11 @@ makes the first launch the real sync test: sign in, and the data should arrive.
 
 | Item | Severity | Note |
 |------|----------|------|
-| Sync round trip untested on hardware | **high** | See the checklist above. |
+| **Nothing tested on hardware yet** | **high** | See "Next: test on the phone" above. |
 | Local DB unencrypted | **medium** | See gates. |
 | No crash reporting | **medium** | See gates. |
 | No network-reachability trigger | low | Foreground + manual only; needs a native module (ADR 0002). |
 | Global rather than per-table cursors | low | One failing table replays all seven. Deliberate — ADR 0012, decision 4. |
-| Five tabs, Phase 6 wants a sixth | medium | Voice log should be a Home action, not a tab. |
 | `deletedAt` rows never purged | low | Needs a way to confirm a tombstone reached all replicas. |
 | Icons are Expo defaults | low | Cosmetic. |
 | **No browser preview** | low | Tried 2026-09-21 and abandoned. Needs `react-native-web`, a proxy adding COOP/COEP to the HTML document, and a web-only entry warming the SQLite worker (sync calls spin ~100ms and always time out cold). Even then it fails on `withExclusiveTransactionAsync is not supported on web` (the migration runner) and SecureStore having no web build. Making it work means changing migration code for a platform the app never ships to. Test on the phone. |
@@ -200,6 +254,8 @@ Reversing one means writing a new ADR that supersedes it.
 - **Colour verified against WCAG in CI** (ADR 0011)
 - **Cursors, not an outbox; conditional upsert on *both* ends** (ADR 0012)
 - **Email OTP, tokens in SecureStore** (ADR 0013)
+- **Voice via the keyboard's mic; AI via a share-sheet hand-off** (ADR 0014)
+- **`useLiveQuery` always gets a dependency list** — `check:layering` enforces it.
 - **A shipped migration is frozen.** Append; never edit.
 - **Dependencies point one way** — `npm run check:layering`.
 - **All SQL lives in a feature's `api/`.** Components never import `db`.

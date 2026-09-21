@@ -79,6 +79,10 @@ export default function RootLayout() {
                 and never shown on launch — the app must be fully usable
                 signed out (ADR 0004). */}
             <Stack.Screen name="sync" options={{ animation: 'slide_from_right' }} />
+            {/* The work log is a Home action rather than a sixth tab: it is
+                used once a day, at the end of it, and a tab is a permanent
+                cost on every screen for something visited daily at most. */}
+            <Stack.Screen name="worklog" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </ErrorBoundary>
       </SafeAreaProvider>

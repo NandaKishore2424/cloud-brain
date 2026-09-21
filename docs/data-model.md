@@ -98,10 +98,39 @@ instead of renumbering the list.
 ### `notes`
 `tags` is a JSON array in a TEXT column. SQLite has no array type; the
 alternative is a join table, which for a personal notes app buys correctness
-nobody needs and costs a join on every read. Full-text search (FTS5) is deferred
-to Phase 3 where it can be designed against real content.
+nobody needs and costs a join on every read. Search is `LIKE` over title and
+body rather than FTS5 — measured, and fast enough to ~2,000 notes (ADR 0010).
+
+### `applications` · `application_events` (migration 3)
+A job application and its timeline. `status` is one of seven pipeline stages;
+`ghosted` is distinct from `rejected` because "they stopped replying" and "they
+said no" are different signals about a source. Salary is a range in integer
+paise. Every status change writes an `application_events` row automatically,
+so the timeline cannot be forgotten. Events reference their application with
+`ON DELETE CASCADE`.
+
+| Index | Columns | Serves |
+|---|---|---|
+| `applications_pipeline_idx` | `(deleted_at, status, next_action_on)` | Pipeline grouped by stage; overdue follow-ups |
+| `application_events_timeline_idx` | `(application_id, deleted_at, happened_on)` | One application's timeline |
+
+### `work_logs` (migration 4)
+What was worked on, as free text, dated by `logged_on` — the day the work
+happened, not the day it was written, because logging yesterday after midnight
+is the normal case. `CHECK (length(trim(body)) > 0)` on both SQLite and Postgres,
+so neither end can store or replicate an empty entry. Deliberately no category
+or project columns: structure is extracted at summary time (ADR 0014).
+
+| Index | Columns | Serves |
+|---|---|---|
+| `work_logs_week_idx` | `(deleted_at, logged_on)` | One week of entries, with no sort step |
 
 ### `meta`
-Key/value store for app-level flags. Schema version is **not** here — it lives
-in SQLite's own `PRAGMA user_version`, so the version and the schema cannot
-disagree and both move in the same transaction.
+Key/value store for per-device state. Holds the sync cursors
+(`sync.lastPushedAt`, `sync.lastPulledAt`, `sync.userId`, `sync.lastSyncedAt`) —
+and is the one table **never** synced, because a cursor copied to another device
+would tell it that it already has rows it has never seen (ADR 0012).
+
+Schema version is **not** here — it lives in SQLite's own `PRAGMA user_version`,
+so the version and the schema cannot disagree and both move in the same
+transaction.

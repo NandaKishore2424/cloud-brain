@@ -125,6 +125,7 @@ const PAIRS = [
 
   // --- text on soft (translucent) chip backgrounds --------------------
   { fg: 'accent', bg: 'accentSoft', over: 'surface', min: 4.5, role: 'accent text on accent chip' },
+  { fg: 'text', bg: 'accentSoft', over: 'surface', min: 4.5, role: 'body text on a selected row' },
   { fg: 'positive', bg: 'positiveSoft', over: 'surface', min: 4.5, role: 'positive text on chip' },
   { fg: 'negative', bg: 'negativeSoft', over: 'surface', min: 4.5, role: 'negative text on chip' },
 

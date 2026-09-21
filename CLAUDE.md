@@ -24,12 +24,12 @@ in `docs/decisions/`. If you make a non-obvious decision, write the ADR.
 | 1 | Money — income / expense tracking | Phase 1 |
 | 2 | Todos — task list with projects | Phase 2 |
 | 3 | Notes — markdown-ish notes with tags | Phase 3 |
-| 4 | Cloud sync + auth (Supabase) | Phase 4 |
+| 4 | Cloud sync + auth (Supabase) | Phase 4 — built, **switched off** by choice |
 | 5 | Job application tracker | Phase 5 |
-| 6 | Voice work-log + AI weekly summaries | Phase 6 |
+| 6 | Work log + AI weekly summaries | Phase 6 — see ADR 0014 |
 
-Features 5 and 6 are **not** in scope yet. Do not build toward them speculatively,
-but do not make decisions that block them either.
+All six are built. Sync is deliberately left off (HANDOVER.md explains why and
+what switching it on requires). Anything new is a new phase with its own ADR.
 
 ---
 

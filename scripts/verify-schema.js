@@ -130,6 +130,17 @@ async function main() {
     'rejects an event for an unknown application (foreign key enforced)',
   );
 
+  check(
+    accepts(`INSERT INTO work_logs (id, logged_on, body, created_at, updated_at)
+             VALUES ('wl1', '2026-09-20', 'Shipped the sync engine', 1, 1);`),
+    'accepts a valid work log entry',
+  );
+  check(
+    !accepts(`INSERT INTO work_logs (id, logged_on, body, created_at, updated_at)
+              VALUES ('bad6', '2026-09-20', '   ', 1, 1);`),
+    'rejects a whitespace-only work log entry',
+  );
+
   console.log('\nQuery plan — main ledger read');
   const plan = db
     .exec(
@@ -178,6 +189,24 @@ async function main() {
   check(appPlan.includes('applications_pipeline_idx'), 'uses applications_pipeline_idx');
   check(
     !appPlan.includes('USE TEMP B-TREE'),
+    'no temp B-tree sort (index supplies the order)',
+  );
+
+  console.log('\nQuery plan — one week of the work log');
+  const workPlan = db
+    .exec(
+      `EXPLAIN QUERY PLAN
+       SELECT * FROM work_logs
+       WHERE deleted_at IS NULL AND logged_on BETWEEN '2026-09-14' AND '2026-09-20'
+       ORDER BY logged_on DESC;`,
+    )[0]
+    .values.map((row) => row.join(' '))
+    .join('\n');
+
+  console.log(`    ${workPlan.trim()}`);
+  check(workPlan.includes('work_logs_week_idx'), 'uses work_logs_week_idx');
+  check(
+    !workPlan.includes('USE TEMP B-TREE'),
     'no temp B-tree sort (index supplies the order)',
   );
 

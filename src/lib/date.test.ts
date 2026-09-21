@@ -4,12 +4,16 @@ import {
   addDays,
   asCalendarDate,
   formatDayHeading,
+  formatWeekLabel,
+  formatWeekday,
   monthBounds,
   monthKey,
   parseCalendarDate,
   shiftMonth,
+  shiftWeek,
   toCalendarDate,
   todayDate,
+  weekBounds,
   type CalendarDate,
 } from './date';
 
@@ -204,5 +208,71 @@ describe('formatDayHeading', () => {
 
     expect(heading).not.toBe('Today');
     expect(heading).toMatch(/\w{3}, \d{1,2} \w{3}/);
+  });
+});
+
+describe('weekBounds', () => {
+  const d = (value: string) => asCalendarDate(value);
+
+  it('runs Monday to Sunday', () => {
+    // 2026-09-14 is a Monday, 2026-09-20 a Sunday.
+    expect(weekBounds(d('2026-09-16'))).toEqual({ start: '2026-09-14', end: '2026-09-20' });
+  });
+
+  it('keeps a Monday in its own week', () => {
+    expect(weekBounds(d('2026-09-14')).start).toBe('2026-09-14');
+  });
+
+  // The edge Date.getDay() gets wrong by default: Sunday is 0, so a naive
+  // "subtract getDay()" puts Sunday at the START of the following week.
+  it('keeps a Sunday at the end of its week, not the start of the next', () => {
+    expect(weekBounds(d('2026-09-20'))).toEqual({ start: '2026-09-14', end: '2026-09-20' });
+  });
+
+  it('spans a month boundary', () => {
+    expect(weekBounds(d('2026-10-01'))).toEqual({ start: '2026-09-28', end: '2026-10-04' });
+  });
+
+  it('spans a year boundary', () => {
+    expect(weekBounds(d('2027-01-01'))).toEqual({ start: '2026-12-28', end: '2027-01-03' });
+  });
+});
+
+describe('shiftWeek', () => {
+  const d = (value: string) => asCalendarDate(value);
+
+  it('moves to the Monday of an adjacent week', () => {
+    expect(shiftWeek(d('2026-09-17'), -1)).toBe('2026-09-07');
+    expect(shiftWeek(d('2026-09-17'), 1)).toBe('2026-09-21');
+  });
+
+  it('is a no-op on the Monday for zero', () => {
+    expect(shiftWeek(d('2026-09-20'), 0)).toBe('2026-09-14');
+  });
+});
+
+describe('formatWeekLabel', () => {
+  const range = (start: string, end: string) => ({
+    start: asCalendarDate(start),
+    end: asCalendarDate(end),
+  });
+
+  it('names the month once when the week sits inside it', () => {
+    expect(formatWeekLabel(range('2026-09-14', '2026-09-20'))).toBe('14 – 20 Sep 2026');
+  });
+
+  it('names both months across a month boundary', () => {
+    expect(formatWeekLabel(range('2026-09-28', '2026-10-04'))).toBe('28 Sep – 4 Oct 2026');
+  });
+
+  it('names both years across a year boundary', () => {
+    expect(formatWeekLabel(range('2026-12-28', '2027-01-03'))).toBe('28 Dec 2026 – 3 Jan 2027');
+  });
+});
+
+describe('formatWeekday', () => {
+  it('is absolute, never relative', () => {
+    expect(formatWeekday(todayDate())).not.toBe('Today');
+    expect(formatWeekday(asCalendarDate('2026-09-14'))).toBe('Mon, 14 Sep');
   });
 });

@@ -256,6 +256,32 @@ export const applicationEvents = sqliteTable(
 );
 
 /* ================================================================== */
+/* Work log                                                           */
+/* ================================================================== */
+
+/**
+ * What was worked on, one entry per thing, dated by the day the work happened.
+ *
+ * Deliberately just text and a date. The structure a weekly summary needs —
+ * themes, achievements, STAR form — is extracted at summary time rather than
+ * demanded at capture time: the entry is written at the end of a tiring day,
+ * often by voice, and every required field there is a reason not to log at all.
+ *
+ * `loggedOn` is a CalendarDate, not derived from `createdAt`, because logging
+ * yesterday's work after midnight is the normal case, not the exception.
+ */
+export const workLogs = sqliteTable(
+  'work_logs',
+  {
+    id: text('id').primaryKey(),
+    loggedOn: text('logged_on').$type<CalendarDate>().notNull(),
+    body: text('body').notNull(),
+    ...lifecycle,
+  },
+  (table) => [index('work_logs_week_idx').on(table.deletedAt, table.loggedOn)],
+);
+
+/* ================================================================== */
 /* Meta                                                               */
 /* ================================================================== */
 
@@ -289,3 +315,6 @@ export type NewApplication = typeof applications.$inferInsert;
 
 export type ApplicationEvent = typeof applicationEvents.$inferSelect;
 export type NewApplicationEvent = typeof applicationEvents.$inferInsert;
+
+export type WorkLog = typeof workLogs.$inferSelect;
+export type NewWorkLog = typeof workLogs.$inferInsert;

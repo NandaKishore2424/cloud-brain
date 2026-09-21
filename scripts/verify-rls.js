@@ -34,6 +34,7 @@ const SYNCED_TABLES = [
   'notes',
   'applications',
   'application_events',
+  'work_logs',
 ];
 
 const ALICE = '11111111-1111-4111-8111-111111111111';
@@ -299,6 +300,63 @@ async function main() {
     check(
       (await db.query('select id from public.notes')).rows.length === 0,
       'Bob still sees none of the notes',
+    );
+  });
+
+  // --- Work log (0005) ----------------------------------------------------
+  //
+  // 0005 writes its upsert function out by hand rather than through the loop
+  // that generated the other seven, so it is a separate code path and gets its
+  // own behavioural checks instead of inheriting the notes ones.
+  console.log('\nWork log upsert (0005)');
+
+  const WORK_LOG_ID = 'aaaaaaaa-0000-4000-8000-00000000001a';
+  const workLogBody = async () =>
+    (await db.query('select body from public.work_logs where id = $1', [WORK_LOG_ID]))
+      .rows[0]?.body;
+  const pushWorkLog = (body, updatedAt) =>
+    db.query('select public.sync_upsert_work_logs($1::jsonb)', [
+      JSON.stringify([
+        { id: WORK_LOG_ID, user_id: ALICE, logged_on: '2026-09-20', body,
+          created_at: 1, updated_at: updatedAt, deleted_at: null },
+      ]),
+    ]);
+
+  await asUser(db, ALICE, async () => {
+    await pushWorkLog('Shipped the sync engine', 100);
+    check((await workLogBody()) === 'Shipped the sync engine', 'a new work log inserts');
+
+    await pushWorkLog('stale edit', 50);
+    check((await workLogBody()) === 'Shipped the sync engine', 'a stale work-log push is a no-op');
+
+    await pushWorkLog('Shipped the sync engine and its tests', 200);
+    check(
+      (await workLogBody()) === 'Shipped the sync engine and its tests',
+      'a newer work-log push wins',
+    );
+
+    await expectRejected(
+      db,
+      'the server refuses an empty work log, as the device does',
+      `select public.sync_upsert_work_logs('${JSON.stringify([
+        { id: 'aaaaaaaa-0000-4000-8000-00000000001b', user_id: ALICE, logged_on: '2026-09-20',
+          body: '   ', created_at: 1, updated_at: 300, deleted_at: null },
+      ])}'::jsonb)`,
+    );
+  });
+
+  await asUser(db, BOB, async () => {
+    check(
+      (await db.query('select id from public.work_logs')).rows.length === 0,
+      "Bob cannot see Alice's work log",
+    );
+    await expectRejected(
+      db,
+      "Bob cannot write a work log into Alice's account",
+      `select public.sync_upsert_work_logs('${JSON.stringify([
+        { id: 'cccccccc-0000-4000-8000-00000000001c', user_id: ALICE, logged_on: '2026-09-20',
+          body: 'planted', created_at: 1, updated_at: 999, deleted_at: null },
+      ])}'::jsonb)`,
     );
   });
 

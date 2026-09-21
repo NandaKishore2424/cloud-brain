@@ -95,18 +95,27 @@ forward-migration test added in Phase 3.
 
 Deferred: email parsing, calendar integration, document attachments.
 
-## Phase 6 — Voice work log
+## Phase 6 — Work log ✅
 
-The reason the project is called Cloud Brain.
+The reason the project is called Cloud Brain. Delivered in a deliberately
+simpler form than first planned — see ADR 0014.
 
-- Nightly notification → mic → **on-device** speech recognition (free, no STT API)
-- Raw transcript written to SQLite **before** any AI call — a failed or
-  rate-limited model must never cost the user their words
-- Transcript → Supabase Edge Function → Gemini structured output → typed work items
-- `pg_cron` weekly rollup → sprint-ready summary
-- Quarterly rollup → achievements in STAR form for appraisals and CV bullets
+- A **Work** capture button on Home opens the log with the keyboard up
+- **Voice is the keyboard's microphone** — Android's own dictation, offline on
+  most devices, no native module and no build change
+- Entries dated by the day the work happened (Today / Yesterday, or the
+  original day when editing); grouped by day, browsed a week at a time
+- **Share week** — plain text for a standup or a manager
+- **Summarise with AI** — a prompt asking for a sprint update, STAR-form
+  achievements and CV bullets, using only what is in the log; handed to
+  Gemini / ChatGPT through the share sheet. No key, no server, nothing leaves
+  the phone until the person chooses where
 
-The API key lives in the Edge Function, never in the app bundle.
+**Adds migration 4** (`work_logs`) locally and `0005` on Postgres, so the log is
+ready to sync if sync is switched on.
+
+Deferred: a nightly reminder notification, and an in-app summary through an
+Edge Function once there is a signed-in user to authorise it.
 
 ---
 

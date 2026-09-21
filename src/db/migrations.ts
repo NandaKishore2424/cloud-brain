@@ -246,6 +246,29 @@ export const migrations: readonly Migration[] = [
          ON application_events (application_id, deleted_at, happened_on);`,
     ],
   },
+  {
+    version: 4,
+    name: 'work_log',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS work_logs (
+         id         TEXT PRIMARY KEY NOT NULL,
+         logged_on  TEXT NOT NULL,
+         -- An empty entry is never intentional: it is a dictation that
+         -- captured nothing, or a save tapped by accident. Refused here rather
+         -- than only in the UI, so no code path can store one.
+         body       TEXT NOT NULL CHECK (length(trim(body)) > 0),
+         created_at INTEGER NOT NULL,
+         updated_at INTEGER NOT NULL,
+         deleted_at INTEGER
+       );`,
+      /*
+       * Every read is "live entries in this week": equality on deleted_at, then
+       * a range on logged_on. Same shape as transactions_ledger_idx.
+       */
+      `CREATE INDEX IF NOT EXISTS work_logs_week_idx
+         ON work_logs (deleted_at, logged_on);`,
+    ],
+  },
 ];
 
 /** Highest version defined here. The migrator brings the device up to this. */

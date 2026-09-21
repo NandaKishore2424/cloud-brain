@@ -9,6 +9,7 @@ import {
   notes,
   todos,
   transactions,
+  workLogs,
 } from '@/db/schema';
 
 /**
@@ -130,4 +131,5 @@ export const SYNC_TABLES: readonly SyncTable[] = [
   { remoteName: 'notes', table: notes },
   { remoteName: 'applications', table: applications },
   { remoteName: 'application_events', table: applicationEvents },
+  { remoteName: 'work_logs', table: workLogs },
 ];

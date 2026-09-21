@@ -115,6 +115,34 @@ export function formatMonthLabel(value: CalendarDate): string {
   return format(parseCalendarDate(value), 'MMMM yyyy');
 }
 
+/**
+ * Absolute day label: 'Mon, 15 Sep'.
+ *
+ * Deliberately never 'Today' — this is for text that leaves the app (a shared
+ * weekly summary), where a relative word is wrong the moment it is read on a
+ * different day.
+ */
+export function formatWeekday(value: CalendarDate): string {
+  return format(parseCalendarDate(value), 'EEE, d MMM');
+}
+
+/**
+ * A week range, as compact as it can be without ambiguity:
+ * '14 – 20 Sep 2026' · '28 Sep – 4 Oct 2026' · '28 Dec 2026 – 3 Jan 2027'.
+ */
+export function formatWeekLabel(range: DateRange): string {
+  const start = parseCalendarDate(range.start);
+  const end = parseCalendarDate(range.end);
+
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${format(start, 'd MMM yyyy')} – ${format(end, 'd MMM yyyy')}`;
+  }
+  if (start.getMonth() !== end.getMonth()) {
+    return `${format(start, 'd MMM')} – ${format(end, 'd MMM yyyy')}`;
+  }
+  return `${format(start, 'd')} – ${format(end, 'd MMM yyyy')}`;
+}
+
 /** Clock time from a Timestamp: '9:42 pm'. */
 export function formatTime(ts: Timestamp): string {
   return format(new Date(ts), 'h:mm a').toLowerCase();
@@ -153,6 +181,28 @@ export function monthBounds(value: CalendarDate): DateRange {
 
 export function currentMonthBounds(): DateRange {
   return monthBounds(todayDate());
+}
+
+/**
+ * Monday-to-Sunday week containing `value`, both ends inclusive.
+ *
+ * Monday-first is ISO 8601 and how Indian workplaces count a working week;
+ * `Date.getDay()` is Sunday-first, hence the `+ 6) % 7` that turns
+ * Sun..Sat = 0..6 into Mon..Sun = 0..6.
+ *
+ * Built from `addDays` on CalendarDates rather than from epoch arithmetic
+ * (`- n * 86_400_000`), which is off by an hour — and so potentially by a day —
+ * anywhere that observes daylight saving.
+ */
+export function weekBounds(value: CalendarDate): DateRange {
+  const offsetFromMonday = (parseCalendarDate(value).getDay() + 6) % 7;
+  const start = addDays(value, -offsetFromMonday);
+  return { start, end: addDays(start, 6) };
+}
+
+/** The Monday `weeks` weeks away from the week containing `value`. */
+export function shiftWeek(value: CalendarDate, weeks: number): CalendarDate {
+  return addDays(weekBounds(value).start, weeks * 7);
 }
 
 /** Shift a month window forwards or backwards. */
