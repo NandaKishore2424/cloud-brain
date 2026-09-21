@@ -14,7 +14,7 @@ export type ProjectSummary = { project: string; count: number };
  */
 export function useProjects(): ProjectSummary[] {
   const query = useMemo(() => projectsInUse(), []);
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [query]);
 
   return useMemo(
     () =>

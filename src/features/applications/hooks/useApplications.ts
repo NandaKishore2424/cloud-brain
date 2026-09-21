@@ -26,7 +26,7 @@ export type ApplicationsData = {
  */
 export function useApplications(showClosed: boolean): ApplicationsData {
   const query = useMemo(() => allApplications(), []);
-  const { data, error, updatedAt } = useLiveQuery(query);
+  const { data, error, updatedAt } = useLiveQuery(query, [query]);
 
   const today = todayDate();
 

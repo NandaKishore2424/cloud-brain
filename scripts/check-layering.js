@@ -13,6 +13,17 @@
  *   2. Features must not depend on each other.
  *      `src/features/a` may never import from `src/features/b`.
  *
+ *   3. Every `useLiveQuery` call passes its dependency list.
+ *      Drizzle's hook subscribes inside `useEffect(..., deps)` and `deps`
+ *      defaults to `[]` — so without it, the hook subscribes once to the first
+ *      query it is given and ignores every later one. A screen whose query
+ *      depends on a month, a search term or a selected category silently keeps
+ *      showing the first result. That shipped: month navigation, notes search,
+ *      the income/expense category switch and the suggested amounts were all
+ *      stuck, and 180 green tests could not see it because none render a
+ *      screen. Not a layering rule, strictly — but it is the same kind of rule:
+ *      one that lives in a document gets broken.
+ *
  * Deliberately a plain string scan rather than an AST walk or a lint plugin:
  * import statements are trivially greppable, and a 60-line script that runs in
  * milliseconds gets kept in the verify chain, whereas a dependency-graph tool
@@ -84,8 +95,63 @@ for (const file of walk(SRC)) {
   }
 }
 
+/**
+ * Count the top-level arguments of each `useLiveQuery(` call by walking
+ * parentheses, since a regex cannot tell the comma in
+ * `useLiveQuery(useMemo(() => q(a), [a]))` — nested, one argument — from the
+ * one in `useLiveQuery(query, [query])`.
+ */
+function liveQueriesWithoutDeps(source) {
+  const missing = [];
+  const needle = 'useLiveQuery(';
+  let from = 0;
+
+  for (;;) {
+    const at = source.indexOf(needle, from);
+    if (at === -1) return missing;
+    from = at + needle.length;
+
+    // Walk to the MATCHING close paren, recording top-level commas.
+    let depth = 1;
+    let close = source.length;
+    const commas = [];
+    for (let i = from; i < source.length; i += 1) {
+      const ch = source[i];
+      if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          close = i;
+          break;
+        }
+      } else if (ch === ',' && depth === 1) commas.push(i);
+    }
+
+    // A trailing comma — only whitespace before the close paren — does not
+    // begin a second argument.
+    const last = commas[commas.length - 1];
+    const trailing = last !== undefined && source.slice(last + 1, close).trim() === '';
+    const hasSecondArgument = commas.length - (trailing ? 1 : 0) >= 1;
+
+    if (!hasSecondArgument) {
+      missing.push(source.slice(0, at).split('\n').length);
+    }
+  }
+}
+
+for (const file of walk(SRC)) {
+  const relative = path.relative(SRC, file).split(path.sep).join('/');
+  for (const line of liveQueriesWithoutDeps(fs.readFileSync(file, 'utf8'))) {
+    violations.push(
+      `${relative}:${line}\n    useLiveQuery called without a dependency list\n    ` +
+        'pass [query] (memoised) or [] (static) — the default [] freezes the first query',
+    );
+  }
+}
+
 if (violations.length === 0) {
-  console.log('\n  ✓ Layering rules hold (no cross-feature or inverted imports).\n');
+  console.log('\n  ✓ Layering rules hold (no cross-feature or inverted imports).');
+  console.log('  ✓ Every useLiveQuery call passes its dependency list.\n');
   process.exit(0);
 }
 

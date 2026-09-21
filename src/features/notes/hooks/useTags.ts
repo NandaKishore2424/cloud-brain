@@ -15,7 +15,7 @@ export type TagSummary = { tag: string; count: number };
  */
 export function useTags(): TagSummary[] {
   const query = useMemo(() => allNotesForTagIndex(), []);
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [query]);
 
   return useMemo(() => {
     const counts = new Map<string, number>();

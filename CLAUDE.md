@@ -74,6 +74,12 @@ value in a component — if a token is missing, add it to `tokens.ts`.
 **Data access** Feature code calls `src/features/<f>/api/*`. Those files are the
 only place Drizzle queries are written. Components never import `db` directly.
 
+**Live queries** Always pass `useLiveQuery` a dependency list: `[query]` for a
+memoised query, `[]` for a static one. Drizzle's default is `[]`, which
+subscribes once and silently ignores every later query — this froze month
+navigation, notes search and two pickers before it was caught. Enforced by
+`npm run check:layering`.
+
 **Lists** Use `FlashList`, never `FlatList` or `.map()` over unbounded data.
 
 **Errors** Data-layer functions return `Result<T>` (`src/lib/result.ts`), they do

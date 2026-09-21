@@ -32,12 +32,16 @@ export function DevTools() {
   const [busy, setBusy] = useState(false);
   const schemaVersion = useSchemaVersion();
 
+  // Explicit `[]`: these queries are rebuilt on every render but never change,
+  // so subscribing once is correct — and passing the query itself as the dep
+  // would re-subscribe every render, which re-renders, which re-subscribes.
   const transactionRows = useLiveQuery(
     db.select({ id: transactions.id }).from(transactions),
+    [],
   );
-  const todoRows = useLiveQuery(db.select({ id: todos.id }).from(todos));
-  const noteRows = useLiveQuery(db.select({ id: notes.id }).from(notes));
-  const appRows = useLiveQuery(db.select({ id: applications.id }).from(applications));
+  const todoRows = useLiveQuery(db.select({ id: todos.id }).from(todos), []);
+  const noteRows = useLiveQuery(db.select({ id: notes.id }).from(notes), []);
+  const appRows = useLiveQuery(db.select({ id: applications.id }).from(applications), []);
 
   const counts = {
     transactions: transactionRows.data?.length ?? 0,

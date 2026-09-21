@@ -26,7 +26,7 @@ export function useMonthSummary(range: DateRange): MonthSummary {
     [range.start, range.end],
   );
 
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [query]);
 
   return useMemo(() => foldMonthTotals(data), [data]);
 }
@@ -47,7 +47,7 @@ export function useCategoryBreakdown(range: DateRange): CategoryBreakdown {
     [range.start, range.end],
   );
 
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [query]);
 
   return useMemo(() => {
     const rows = data ?? [];

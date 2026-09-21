@@ -30,7 +30,7 @@ export type TodosData = {
  */
 export function useTodos(project: string | null): TodosData {
   const query = useMemo(() => openTodos(), []);
-  const { data, error, updatedAt } = useLiveQuery(query);
+  const { data, error, updatedAt } = useLiveQuery(query, [query]);
 
   const today = todayDate();
 

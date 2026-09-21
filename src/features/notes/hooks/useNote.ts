@@ -11,7 +11,7 @@ export type SingleNote = {
 /** One note, reactively. Used by the editor to seed its draft state. */
 export function useNote(id: string): SingleNote {
   const query = useMemo(() => noteById(id), [id]);
-  const { data, updatedAt } = useLiveQuery(query);
+  const { data, updatedAt } = useLiveQuery(query, [query]);
 
   return {
     note: data?.[0],

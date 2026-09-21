@@ -26,6 +26,6 @@ export type PickerCategory = {
  */
 export function useCategoriesByRecency(kind: TransactionType): PickerCategory[] {
   const query = useMemo(() => categoriesByRecency(kind), [kind]);
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [query]);
   return data ?? [];
 }

@@ -31,7 +31,8 @@ export function useFrequentAmounts(
   // `useLiveQuery` needs a query every render, so an impossible-but-valid one
   // stands in while no category is selected. The result is discarded below.
   const fallback = useMemo(() => frequentAmounts('', type, 1), [type]);
-  const { data } = useLiveQuery(query ?? fallback);
+  const active = query ?? fallback;
+  const { data } = useLiveQuery(active, [active]);
 
   return useMemo(() => {
     if (categoryId === null) return [];

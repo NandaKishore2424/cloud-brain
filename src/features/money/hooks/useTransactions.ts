@@ -54,7 +54,7 @@ export function useTransactions(range: DateRange): LedgerData {
     [range.start, range.end],
   );
 
-  const { data, error, updatedAt } = useLiveQuery(query);
+  const { data, error, updatedAt } = useLiveQuery(query, [query]);
 
   const { rows, stickyIndices } = useMemo(
     () => groupByDay(data ?? []),

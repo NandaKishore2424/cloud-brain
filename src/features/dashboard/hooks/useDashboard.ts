@@ -68,13 +68,13 @@ export function useDashboard(): DashboardData {
   const today = todayDate();
   const range = useMemo(() => currentMonthBounds(), []);
 
-  const totals = useLiveQuery(useMemo(() => monthTotals(range), [range]));
-  const todaySpend = useLiveQuery(useMemo(() => spentOn(today), [today]));
-  const due = useLiveQuery(useMemo(() => todosDueBy(today), [today]));
-  const openTodos = useLiveQuery(useMemo(() => openTodoCount(), []));
-  const follow = useLiveQuery(useMemo(() => followUpsDueBy(today), [today]));
-  const activeApps = useLiveQuery(useMemo(() => activeApplicationCount(), []));
-  const notes = useLiveQuery(useMemo(() => recentNotes(3), []));
+  const totals = useLiveQuery(useMemo(() => monthTotals(range), [range]), [range]);
+  const todaySpend = useLiveQuery(useMemo(() => spentOn(today), [today]), [today]);
+  const due = useLiveQuery(useMemo(() => todosDueBy(today), [today]), [today]);
+  const openTodos = useLiveQuery(useMemo(() => openTodoCount(), []), []);
+  const follow = useLiveQuery(useMemo(() => followUpsDueBy(today), [today]), [today]);
+  const activeApps = useLiveQuery(useMemo(() => activeApplicationCount(), []), []);
+  const notes = useLiveQuery(useMemo(() => recentNotes(3), []), []);
 
   return useMemo(() => {
     let monthIncome = 0;

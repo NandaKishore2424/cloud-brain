@@ -24,7 +24,7 @@ export type NotesData = {
  */
 export function useNotes(search: string): NotesData {
   const query = useMemo(() => notesList(search), [search]);
-  const { data, error, updatedAt } = useLiveQuery(query);
+  const { data, error, updatedAt } = useLiveQuery(query, [query]);
 
   return useMemo(() => {
     const rows = data ?? [];
